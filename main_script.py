@@ -8,8 +8,14 @@ import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 
 import networkx
-from bs4 import BeautifulSoup
+import bs4
 # import matplotlib.pyplot as plt
+
+import time  # TEMPORARY!
+
+random.seed(-1)
+
+DEBUG = True
 
 
 # TODO analyse the web-scraping, find ways to speed it up.
@@ -21,91 +27,12 @@ from bs4 import BeautifulSoup
 #       [output file name, write graph data to file.]
 #       [output to console]
 #       [verbosity (info level logging)
-#           low: current degree, number of users processed
-#           medium: adding of nodes, edges
-#           high: discovery of colleagues, current processing time, estimated remaining time.]
+#           0 (default, always) - errors
+#           1 - low: current degree, number of users processed
+#           2 - medium: adding of nodes, edges
+#           3 - high: discovery of colleagues, current processing time, estimated remaining time.]
 #
 #           never shown: debugging logging.
-
-random.seed(-1)
-
-DEBUG = True
-
-# important constants, for web scraping
-URL_YOUTUBE_USER = 'https://www.youtube.com'
-SUBURL_YOUTUBE_CHANNELS = '/channels?view=60'
-RELATED_CHANNELS_TAG = 'li'
-RELATED_CHANNEL_TAG_NAME = 'h3'
-RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
-RELATED_CHANNELS_SUBHREF_ATTR_NAME = 'data-external-id'
-
-# defaults
-DEFAULT_FIRST_USER = ('Cryaotic', URL_YOUTUBE_USER + '/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
-DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
-
-# for debugging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)-15s ### %(filename)-15s - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-# global script objects
-graph_nodes = networkx.Graph()
-
-
-# Resources shared between Processes
-user_queue = multiprocessing.Queue()
-users_processed = list()
-users_to_do = list()
-
-
-def get_association_list(url):
-    # grab the webpage at the given url
-    soup = BeautifulSoup(urllib.urlopen(url), 'html.parser')
-
-    # scrape the tags representing related channels
-    channels = soup.find_all(RELATED_CHANNELS_TAG, attrs={'class':RELATED_CHANNELS_CLASS_ATTR_VALUE})
-
-    ret_list = list()
-
-    for channel in channels:
-        # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
-        element = channel.find(RELATED_CHANNEL_TAG_NAME).a
-        user_name = element['title']
-        link = URL_YOUTUBE_USER + element['href'] + SUBURL_YOUTUBE_CHANNELS
-        listing = (user_name, link)
-        ret_list.append(listing)
-
-    return ret_list
-
-
-def generate_colours():
-    color_list = list()
-    # get list of all possible colours.
-    colors = list()
-    # for x colours in scale, there are x^3 colours produced
-    scale = range(0,257,(255/(DEFAULT_MAX_DEGREES_OF_SEPARATION/2)))
-    if DEBUG:
-        logger.debug('color scale: ' + str(scale))
-    for i in itertools.product(scale, scale, scale):
-        # convert from (R, G, B)decimal to '#RRGGBB'hex
-        c = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-        colors.append(c)
-    # dump existing colours, and black and white
-    del colors[0]
-    del colors[-1]
-    # create list of colours, unique per degree of separation
-    for i in range(DEFAULT_MAX_DEGREES_OF_SEPARATION + 2):
-        x = random.randint(0, len(colors))
-        color_list.append(colors[x])
-        if DEBUG:
-            logger.debug('new color for degree ### ' + str(i).zfill(2) + ' ::: ' + colors[x])
-        del colors[x]
-
-    return color_list
 
 
 # what do we do with the next user? find colleagues and add user to the nodes.
@@ -132,9 +59,106 @@ def generate_colours():
 #       degree += 1
 
 
-def generate_graph():
+# important constants, for web scraping
+URL_YOUTUBE_USER = 'https://www.youtube.com'
+SUBURL_YOUTUBE_CHANNELS = '/channels?view=60'
+RELATED_CHANNELS_TAG = 'li'
+RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
+RELATED_CHANNEL_TAG_NAME = 'h3'
 
-    logger.info('Generating graph now...')
+# defaults
+DEFAULT_FIRST_USER = ('Cryaotic', URL_YOUTUBE_USER + '/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
+DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
+
+# for debugging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)-15s ### %(filename)-15s - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+# global script objects
+graph_nodes = networkx.Graph()
+
+
+# Resources shared between Processes
+user_queue = multiprocessing.Queue()
+users_processed = list()
+users_to_do = list()
+
+
+def get_association_list(url):
+    # grab the webpage at the given url
+
+    t = time.time()
+
+    if DEBUG:
+        logger.debug('Collecting Beautiful Soup from ' + str(url) + ' at time=0')
+
+    strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG, attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
+
+    # scrape the tags representing related channels
+    channels = bs4.BeautifulSoup(urllib.urlopen(url), 'html.parser', parse_only=strainer)
+
+    if DEBUG:
+        logger.debug('Channel elements discovered - time (seconds)=' + str(time.time() - t))
+
+    ret_list = list()
+
+    for channel in channels:
+        if not isinstance(channel, bs4.Tag):
+            continue
+        # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
+        try:
+            element = channel.find(RELATED_CHANNEL_TAG_NAME)
+            # if DEBUG:
+            #    logger.debug('current element is: ' + str(element) + ', at: ' + str(url))
+            element_anchor = element.a
+            user_name = element_anchor['title']
+            link = URL_YOUTUBE_USER + element_anchor['href'] + SUBURL_YOUTUBE_CHANNELS
+        except (KeyError, AttributeError):
+            logger.error('Could not parse HTML element on this page, may be malformed: ' + str(url))
+            continue
+        listing = (user_name, link)
+        ret_list.append(listing)
+
+    if DEBUG:
+        logger.debug('Channels processed - time (seconds)=' + str(time.time() - t))
+
+    return ret_list
+
+
+def generate_colours():
+    color_list = list()
+    # get list of all possible colours.
+    colors = list()
+    # for x colours in scale, there are x^3 colours produced
+    scale = range(0,257,(255/(DEFAULT_MAX_DEGREES_OF_SEPARATION/2)))
+    if DEBUG:
+        logger.debug('color scale: ' + str(scale))
+    for i in itertools.product(scale, scale, scale):
+        # convert from (R, G, B)decimal to '#RRGGBB'hex
+        c = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
+        colors.append(c)
+    # dump existing colours, and black and white
+    del colors[0]
+    del colors[-1]
+    # create list of colours, unique per degree of separation
+    for i in range(DEFAULT_MAX_DEGREES_OF_SEPARATION + 2):
+        x = random.randint(0, len(colors) - 1)
+        color_list.append(colors[x])
+        if DEBUG:
+            logger.debug('new color for degree ### ' + str(i).zfill(2) + ' ::: ' + colors[x])
+        del colors[x]
+
+    return color_list
+
+
+def generate_graph():
+    if DEBUG:
+        logger.debug('Generating graph now...')
 
     graph_nodes.clear()
     if DEBUG:
@@ -144,6 +168,12 @@ def generate_graph():
     users_to_do.append(DEFAULT_FIRST_USER)
 
     while degree < DEFAULT_MAX_DEGREES_OF_SEPARATION:
+
+        degree += 1
+
+        if DEBUG:
+            logger.debug('new degree: ' + str(degree) + ' #######')
+
         while len(users_to_do) > 0:
             user_queue.put(users_to_do.pop())
 
@@ -190,12 +220,8 @@ def generate_graph():
                     if DEBUG:
                         logger.debug('finished colleague discovery.')
 
-        degree += 1
-
-        if DEBUG:
-            logger.debug('new degree: ' + str(degree) + ' #######')
-
-    logger.info ('Graph generation complete.')
+    if DEBUG:
+        logger.debug('Graph generation complete.')
 
     return
 
