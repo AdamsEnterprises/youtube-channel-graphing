@@ -11,14 +11,10 @@ import networkx
 import bs4
 # import matplotlib.pyplot as plt
 
-import time  # TEMPORARY!
-
 random.seed(-1)
 
 DEBUG = True
 
-
-# TODO analyse the web-scraping, find ways to speed it up.
 # TODO add argpharsing for CLI usage.
 
 
@@ -92,18 +88,10 @@ users_to_do = list()
 def get_association_list(url):
     # grab the webpage at the given url
 
-    t = time.time()
-
-    if DEBUG:
-        logger.debug('Collecting Beautiful Soup from ' + str(url) + ' at time=0')
-
     strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG, attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
 
     # scrape the tags representing related channels
     channels = bs4.BeautifulSoup(urllib.urlopen(url), 'html.parser', parse_only=strainer)
-
-    if DEBUG:
-        logger.debug('Channel elements discovered - time (seconds)=' + str(time.time() - t))
 
     ret_list = list()
 
@@ -113,8 +101,6 @@ def get_association_list(url):
         # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
         try:
             element = channel.find(RELATED_CHANNEL_TAG_NAME)
-            # if DEBUG:
-            #    logger.debug('current element is: ' + str(element) + ', at: ' + str(url))
             element_anchor = element.a
             user_name = element_anchor['title']
             link = URL_YOUTUBE_USER + element_anchor['href'] + SUBURL_YOUTUBE_CHANNELS
@@ -123,9 +109,6 @@ def get_association_list(url):
             continue
         listing = (user_name, link)
         ret_list.append(listing)
-
-    if DEBUG:
-        logger.debug('Channels processed - time (seconds)=' + str(time.time() - t))
 
     return ret_list
 
