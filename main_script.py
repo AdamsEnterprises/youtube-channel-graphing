@@ -113,14 +113,20 @@ def get_association_list(url):
     return ret_list
 
 
-def generate_colours():
+def generate_colours(degree):
+    if not isinstance(degree, int):
+        raise TypeError("Parameter 'degree' must be Integer.")
+    if degree <= 0:
+        raise ValueError("Parameter 'degree' must be greater than or equal to 1.")
     color_list = list()
     # get list of all possible colours.
     colors = list()
-    # for x colours in scale, there are x^3 colours produced
-    scale = range(0,257,(255/(DEFAULT_MAX_DEGREES_OF_SEPARATION/2)))
-    if DEBUG:
-        logger.debug('color scale: ' + str(scale))
+    # for x colours required, there are x^3-2 colours produced
+    x = 2
+    while degree > ((x * x * x) - 2):
+        x += 1
+    scale_factor = int((256.0 / (x - 1) - 0.1))
+    scale = range(0, 256, scale_factor)
     for i in itertools.product(scale, scale, scale):
         # convert from (R, G, B)decimal to '#RRGGBB'hex
         c = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
@@ -129,11 +135,9 @@ def generate_colours():
     del colors[0]
     del colors[-1]
     # create list of colours, unique per degree of separation
-    for i in range(DEFAULT_MAX_DEGREES_OF_SEPARATION + 2):
+    for i in range(degree):
         x = random.randint(0, len(colors) - 1)
         color_list.append(colors[x])
-        if DEBUG:
-            logger.debug('new color for degree ### ' + str(i).zfill(2) + ' ::: ' + colors[x])
         del colors[x]
 
     return color_list
@@ -210,7 +214,7 @@ def generate_graph():
 
 
 def show_graph():
-    colors = generate_colours()
+    colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
     networkx.draw_spring(graph_nodes,
                          node_color=[colors[graph_nodes.node[node]['degree']] for node in graph_nodes])
 
