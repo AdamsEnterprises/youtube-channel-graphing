@@ -151,10 +151,10 @@ def generate_graph():
     if DEBUG:
             logger.debug('graph objects ready.')
 
-    degree = 0
+    degree = -1
     users_to_do.append(DEFAULT_FIRST_USER)
 
-    while degree < DEFAULT_MAX_DEGREES_OF_SEPARATION:
+    while degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
 
         degree += 1
 

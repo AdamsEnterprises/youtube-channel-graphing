@@ -10,6 +10,7 @@ import main_script
 class YoutubeGraphTestCases(unittest.TestCase):
 
     def test_collect_associations(self):
+
         testing_origin = u'https://www.youtube.com/channel/UCu2yrDg7wROzElRGoLQH82A/channels'
         testing_targets = [
             (u'videooven', u'https://www.youtube.com/channel/UCR0_w50kjTiqQFE6J76l_mw/channels?view=60'),
@@ -32,6 +33,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         # sort the target_list
         testing_targets.sort(key=lambda x:x[0])
 
+        import main_script
         results = main_script.get_association_list(testing_origin)
 
         # sort the results
@@ -52,13 +54,17 @@ class YoutubeGraphTestCases(unittest.TestCase):
 
     def test_colour_generation(self):
         degrees_to_test = (2, 4, 12, 20)
+
         for degree in degrees_to_test:
+
             colours = main_script.generate_colours(degree)
+
             self.assertEqual(len(colours), degree, "Failure: expected {} colours but received {}".format(
                 degree, len(colours)
             ))
             self.assertTrue((0, 0, 0) not in colours)
             self.assertTrue((255, 255, 255) not in colours)
+
         self.assertRaises(ValueError, main_script.generate_colours, 0)
         self.assertRaises(ValueError, main_script.generate_colours, -3)
         self.assertRaises(TypeError, main_script.generate_colours, 4.4)
@@ -66,19 +72,24 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
     def test_graph_generation(self):
-        self.fail("Test is incomplete.")
+        self.skipTest("Test is incomplete.")
         main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
-        main_script.DEFAULT_FIRST_USER = 'Markiplier'
+        main_script.DEFAULT_FIRST_USER = 'Markiplier', 'https://www.youtube.com/user/markiplierGAME/channels?view=60'
         nodes = set()
         edges = set()
 
         test_data = (
             ('Markiplier', 'muyskerm', 'LordMinion777', 'yamimash', 'LixianTV', 'GameGrumps', 'EgoRaptor',
-             'Ninja Sex Party',
-             'RubberNinja', 'Cyndago', 'Matthias', 'TheRPGMinx', 'jacksepticeye', 'CinnamonToastKen', 'Cryaotic'),
+             'Ninja Sex Party', 'RubberNinja', 'Cyndago', 'Matthias', 'TheRPGMinx', 'jacksepticeye',
+             'CinnamonToastKen', 'Cryaotic'),
             ('Cryaotic', 'videooven', 'wowcrendor', 'Traggey', 'PewDiePie', 'PressHeartToContinue', 'Northernlion',
              'DamnNoHtml', 'Jesse Cox', 'Russ Money', 'TheRPGMinx', 'Sp00nerism', 'CinnamonToastKen',
              'Markiplier', 'Gamerbomb', 'Tasty'),
+            ('CinnamonToastKen', 'Cryaotic', 'Markiplier', 'PressHeartToContinue', 'YOGSCAST Strippin', 'TheRPGMinx',
+             'jacksepticeye', 'Ken&Mary', 'SuperMaryFace', 'PewDiePie', 'YOGSCAST Martyn', 'UberHaxorNova'),
+            ('TheRPGMinx', 'Boyinaband', 'Zer0Doxy', 'Bryce Games', 'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'Smarticus',
+             'GirlGamerGaB', 'KrismPro', 'Ohmwrecker / Maskedgamer', 'Sinow', 'CriousGamers',),
+            ('Matthias', 'Matt & Amanda', 'Team Edge', 'Amanda Faye', 'M-Tech', 'J-Fred', 'The Crazie Crew')
 
         )
 
@@ -86,16 +97,18 @@ class YoutubeGraphTestCases(unittest.TestCase):
             for n in x:
                 nodes.add(n)
             for n in x[1:]:
-                edges.add((x[0], n))
+                if not ((x[0], n) in edges or (n, x[0]) in edges):
+                    edges.add((x[0], n))
 
+        import main_script
         main_script.generate_graph()
 
         for node in nodes:
-            self.assertTrue(main_script.graph_nodes.has_nodes(node))
+            self.assertTrue(main_script.graph_nodes.has_node(node))
         for edge in edges:
-            self.assertTrue(main_script.graph_nodes.has_edge(edge[0], edge[1]))
+            self.assertTrue(main_script.graph_nodes.has_edge(edge[0], edge[1]) or
+                            main_script.graph_nodes.has_edge(edge[1], edge[0]))
 
 
 if __name__ == '__main__':
     nose.run()
-
