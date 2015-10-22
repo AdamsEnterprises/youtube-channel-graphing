@@ -70,7 +70,7 @@ RELATED_CHANNEL_TAG_NAME = 'h3'
 
 # defaults
 DEFAULT_FIRST_USER = (u'Cryaotic', URL_YOUTUBE_USER + u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
-DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
+DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
 
 # for debugging
 logger = logging.getLogger(__name__)
@@ -162,16 +162,12 @@ def generate_graph():
     if DEBUG:
         logger.debug('new graph node - ' + DEFAULT_FIRST_USER[0])
 
+    degree += 1
+
 
     while degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
-
-        degree += 1
-
         if DEBUG and degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
             logger.debug('new degree: ' + str(degree) + ' #######')
-
-        if degree > DEFAULT_MAX_DEGREES_OF_SEPARATION:
-            continue
 
         while len(users_to_do) > 0:
             user_queue.put(users_to_do.pop())
@@ -207,6 +203,8 @@ def generate_graph():
             users_processed.append((user_name, url))
             if DEBUG:
                 logger.debug('processed users - ' + str(len(users_processed)))
+
+        degree += 1
 
     return
 
