@@ -171,19 +171,27 @@ def generate_graph():
 
         while len(users_to_do) > 0:
             user_queue.put(users_to_do.pop())
+
         if DEBUG and user_queue.qsize() > 0:
             logger.debug('user queue size - ' + str(user_queue.qsize()))
 
         while True:
 
+            if DEBUG:
+                logger.debug('Entered queue processing.')
+
             # unload the next users from the queue.
             if user_queue.empty() or user_queue.qsize() < 1:
                 # ran out of next_users - stop analyzing this level
+                if DEBUG:
+                    logger.debug('about to end queue processing.')
                 break
 
             user_name, url = user_queue.get()
             # list of (name, url) tuples with edge to this user url.
             associations = get_association_list(url)
+            if DEBUG:
+                logger.debug('retrieved associations.')
             for colleague in associations:
                 colleague_name, _ = colleague
                 if not graph_nodes.has_node(colleague_name):
