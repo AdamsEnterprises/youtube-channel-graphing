@@ -59,7 +59,8 @@ class YoutubeGraphTestCases(unittest.TestCase):
 
             colours = main_script.generate_colours(degree)
 
-            self.assertEqual(len(colours), degree, "Failure: expected {} colours but received {}".format(
+            # number of degrees is (0, ..., x) i.e. x + 1, thus number of colours should be x + 1.
+            self.assertEqual(len(colours), degree + 1, "Failure: expected {} colours but received {}".format(
                 degree, len(colours)
             ))
             self.assertTrue((0, 0, 0) not in colours)
@@ -71,43 +72,111 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, '7')
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
+    def _scrape_elements(self, soup, params_hierarchy):
+        elements = list()
+        elements.append(soup)
+        for params in params_hierarchy:
+            results = list()
+            for element in elements:
+                for items in element.find_all(*params[0], **params[1]):
+                    for item in items:
+                        if len(item) > 0:
+                            results.append(item)
+            elements = list(results)
+        return elements
+
+    def test_graph_view(self):
+        try:
+            main_script.show_graph()
+            # TODO use more specific exception catching.
+        except Exception as e:
+            self.fail('main_script.show_graph raised an Exception. Message is:\n' +
+                      e.message)
+
+
     def test_graph_generation(self):
-        self.skipTest("Test is incomplete.")
-        main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
-        main_script.DEFAULT_FIRST_USER = 'Markiplier', 'https://www.youtube.com/user/markiplierGAME/channels?view=60'
-        nodes = set()
-        edges = set()
+
+        testing_first_user = (u'Markiplier', u'https://www.youtube.com/user/markiplierGAME/channels')
+        testing_degrees = 2
 
         test_data = (
-            ('Markiplier', 'muyskerm', 'LordMinion777', 'yamimash', 'LixianTV', 'GameGrumps', 'EgoRaptor',
+            ('Markiplier', 'muyskerm', 'LordMinion777', 'yamimash', 'LixianTV', 'GameGrumps', 'Egoraptor',
              'Ninja Sex Party', 'RubberNinja', 'Cyndago', 'Matthias', 'TheRPGMinx', 'jacksepticeye',
              'CinnamonToastKen', 'Cryaotic'),
+
             ('Cryaotic', 'videooven', 'wowcrendor', 'Traggey', 'PewDiePie', 'PressHeartToContinue', 'Northernlion',
              'DamnNoHtml', 'Jesse Cox', 'Russ Money', 'TheRPGMinx', 'Sp00nerism', 'CinnamonToastKen',
              'Markiplier', 'Gamerbomb', 'Tasty'),
+
             ('CinnamonToastKen', 'Cryaotic', 'Markiplier', 'PressHeartToContinue', 'YOGSCAST Strippin', 'TheRPGMinx',
              'jacksepticeye', 'Ken&Mary', 'SuperMaryFace', 'PewDiePie', 'YOGSCAST Martyn', 'UberHaxorNova'),
+
             ('TheRPGMinx', 'Boyinaband', 'Zer0Doxy', 'Bryce Games', 'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'Smarticus',
              'GirlGamerGaB', 'KrismPro', 'Ohmwrecker / Maskedgamer', 'Sinow', 'CriousGamers',),
-            ('Matthias', 'Matt & Amanda', 'Team Edge', 'Amanda Faye', 'M-Tech', 'J-Fred', 'The Crazie Crew')
 
+            ('Matthias', 'Matt & Amanda', 'Team Edge', 'Amanda Faye', 'M-Tech', 'J-Fred', 'The Crazie Crew'),
+
+            ('muyskerm', 'Markiplier', 'Matthias', 'Cyndago', 'LordMinion777', 'jacksepticeye',
+             'Aliens On Toast', 'The Cincy Brass', 'GamingNutz'),
+
+            ('LordMinion777', 'muyskerm', 'Markiplier', 'TheRPGMinx', 'jacksepticeye', 'yamimash', 'dlive22891',
+             'EntoanThePack', 'Jpw03', 'StevRayBro', 'BaronVonGamez', 'PatrckStatic', 'Zombiemold', 'LatinGoddessGame',
+             'TheTeshTube'),
+
+            ('yamimash', 'Yugioh Masters', 'AaroInTheKnee', 'Katyllaria', 'Markiplier', 'LordMinion777',
+             'jacksepticeye', 'RaedwulfGamer', 'muyskerm', 'dlive22891', 'TheRPGMinx', '8-BitGaming', 'EntoanThePack',
+             'lTheMasterOfDooMl', 'Ohmwrecker / Maskedgamer', 'LANDAN2006', 'LiKe BuTTeR', 'Girbeagly',
+             'Randymash', 'Poro IV'),
+
+            ('LixianTV', 'LixianVG', 'Animonster', 'Markiplier', 'MrEVOLVF', 'Hot Pepper Gaming', 'TheOfficialEdge',
+             'Cyndago', 'TheToxicDoctor', 'MrRayhonda', 'MrCreepyPasta', 'VigorousVisuals', 'Sam Joy', 'yamimash'),
+
+            ('GameGrumps', 'GrumpOut', 'Egoraptor', 'KittyKatGaming', 'Ninja Sex Party', 'RubberNinja',
+             'SoloTravelBlog', 'Mortem3r', 'Cinemassacre', 'Markiplier', 'Polaris', 'JonTronShow'),
+
+            ('Egoraptor', 'GameGrumps', 'StamperTV', 'Cinemassacre', 'El Cid', 'Ninja Sex Party', 'newgrounds',
+             'OneyNG', 'Nathan Barnatt', 'Cartoon Drive-Thru', 'Mortem3r', 'RubberNinja', 'psychicpebbles',
+             'Markiplier'),
+
+            ('Ninja Sex Party', 'Egoraptor', 'GameGrumps', 'RubberNinja', 'Hot Pepper Gaming', 'OneyNG',
+             'psychicpebbles', 'Mortem3r', 'comicbookgirl19'),
+
+            ('RubberNinja', 'GameGrumps', 'DidYouKnowGaming?', 'Egoraptor', 'PeanutButterGamer', 'Ninja Sex Party',
+             'Commander Holly', 'OneyNG', 'Ockeroid', 'Ricepirate', 'psychicpebbles', 'ProJared', 'Smooth McGroove',
+             'high5toons', 'That One Video Gamer', 'StamperTV', 'Polaris', 'Spazkidin3D'),
+
+            ('Cyndago', 'RubberNinja', 'Markiplier', 'LixianTV', 'muyskerm', 'LixianTV', 'Kids w/ Problems',
+             'whoismaxwell', 'Ninja Sex Party'),
+
+            ('jacksepticeye', 'TheGamingLemon', 'Daithi De Nogla', 'yamimash', 'GameGrumps', 'muyskerm', 'Markiplier',
+             'PewDiePie', 'CinnamonToastKen', 'LordMinion777')
         )
 
-        for x in test_data:
-            for n in x:
-                nodes.add(n)
-            for n in x[1:]:
-                if not ((x[0], n) in edges or (n, x[0]) in edges):
-                    edges.add((x[0], n))
-
+        # final preparation
         import main_script
+
+        main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = testing_degrees
+        main_script.DEFAULT_FIRST_USER = testing_first_user
+
+        # the function to test
         main_script.generate_graph()
 
-        for node in nodes:
-            self.assertTrue(main_script.graph_nodes.has_node(node))
-        for edge in edges:
-            self.assertTrue(main_script.graph_nodes.has_edge(edge[0], edge[1]) or
-                            main_script.graph_nodes.has_edge(edge[1], edge[0]))
+        # comparisons
+        for user_list in test_data:
+            source = user_list[0]
+            associates = user_list[1:]
+            # some duplicate comparisons may occur.
+            self.assertTrue(main_script.graph_nodes.has_node(source), 'Error: Expected to find (' + source +
+                            ') in Nodes but did not.')
+
+            for assoc in associates:
+                self.assertTrue(main_script.graph_nodes.has_node(assoc),
+                                "Error: Expected to find (" + assoc + ") in Nodes but did not.\n" +
+                                "Current User_list=\n" + str(user_list))
+                self.assertTrue(main_script.graph_nodes.has_edge(source, assoc) or
+                                main_script.graph_nodes.has_edge(assoc, source),
+                                'Error: expected to find edge (' + assoc + ', ' + source + ') but did not.\n' +
+                                "Current User_list=\n" + str(user_list))
 
 
 if __name__ == '__main__':

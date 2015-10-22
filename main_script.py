@@ -56,14 +56,14 @@ DEBUG = True
 
 
 # important constants, for web scraping
-URL_YOUTUBE_USER = 'https://www.youtube.com'
-SUBURL_YOUTUBE_CHANNELS = '/channels?view=60'
+URL_YOUTUBE_USER = u'https://www.youtube.com'
+SUBURL_YOUTUBE_CHANNELS = u'/channels?view=60'
 RELATED_CHANNELS_TAG = 'li'
 RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
 RELATED_CHANNEL_TAG_NAME = 'h3'
 
 # defaults
-DEFAULT_FIRST_USER = ('Cryaotic', URL_YOUTUBE_USER + '/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
+DEFAULT_FIRST_USER = (u'Cryaotic', URL_YOUTUBE_USER + u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
 DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
 
 # for debugging
@@ -123,7 +123,8 @@ def generate_colours(degree):
     colors = list()
     # for x colours required, there are x^3-2 colours produced
     x = 2
-    while degree > ((x * x * x) - 2):
+    # rnumber of degrees is (0, ..., n) thus number of colours returned = n + 1
+    while degree + 1 > ((x * x * x) - 2):
         x += 1
     scale_factor = int((256.0 / (x - 1) - 0.1))
     scale = range(0, 256, scale_factor)
@@ -135,7 +136,7 @@ def generate_colours(degree):
     del colors[0]
     del colors[-1]
     # create list of colours, unique per degree of separation
-    for i in range(degree):
+    for i in range(degree + 1):
         x = random.randint(0, len(colors) - 1)
         color_list.append(colors[x])
         del colors[x]
@@ -148,67 +149,58 @@ def generate_graph():
         logger.debug('Generating graph now...')
 
     graph_nodes.clear()
-    if DEBUG:
-            logger.debug('graph objects ready.')
 
-    degree = -1
+    degree = 0
     users_to_do.append(DEFAULT_FIRST_USER)
+    graph_nodes.add_node(DEFAULT_FIRST_USER[0], degree=degree)
+    if DEBUG:
+        logger.debug('new graph node - ' + DEFAULT_FIRST_USER[0])
+
 
     while degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
 
         degree += 1
 
-        if DEBUG:
+        if DEBUG and degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
             logger.debug('new degree: ' + str(degree) + ' #######')
+
+        if degree > DEFAULT_MAX_DEGREES_OF_SEPARATION:
+            continue
 
         while len(users_to_do) > 0:
             user_queue.put(users_to_do.pop())
+        if DEBUG and user_queue.qsize() > 0:
+            logger.debug('user queue size - ' + str(user_queue.qsize()))
 
         while True:
 
-                if DEBUG:
-                    logger.debug('processed users - ' + str(len(users_processed)))
+            # unload the next users from the queue.
+            if user_queue.empty() or user_queue.qsize() < 1:
+                # ran out of next_users - stop analyzing this level
+                break
 
-                # unload the next level of users from the next_users deque.
-                if user_queue.empty() or user_queue.qsize() < 1:
-                    # ran out of next_users - stop analyzing this level
-                    break
-                user_name, url = user_queue.get()
-
-                if user_name in graph_nodes.nodes():
+            user_name, url = user_queue.get()
+            # list of (name, url) tuples with edge to this user url.
+            associations = get_association_list(url)
+            for colleague in associations:
+                colleague_name, _ = colleague
+                if not graph_nodes.has_node(colleague_name):
+                    graph_nodes.add_node(colleague_name, degree=degree)
                     if DEBUG:
-                        logger.debug('skipping user - ' + user_name)
-                    continue
-                else:
-                    graph_nodes.add_node(user_name, degree=degree)
-                    users_processed.append( (user_name, url) )
-
+                        logger.debug('new graph node - ' + colleague_name)
+                if not graph_nodes.has_edge(user_name, colleague_name) or \
+                        graph_nodes.has_edge(colleague_name, user_name):
+                    graph_nodes.add_edge(user_name, colleague_name)
                     if DEBUG:
-                        logger.debug('new graph node - ' + user_name)
+                        logger.debug('new edge - ' + user_name + ', ' + colleague_name)
+                if degree < DEFAULT_MAX_DEGREES_OF_SEPARATION \
+                        and colleague not in users_processed \
+                        and colleague not in users_to_do:
+                    users_to_do.append(colleague)
 
-                    if DEBUG:
-                        logger.debug('user queue size - ' + str(user_queue.qsize()))
-
-                    # list of (name, url) tuples with edge to this user url.
-                    associations = get_association_list(url)
-                    for colleague in associations:
-                        colleague_name, _  = colleague
-                        if DEBUG:
-                            logger.debug('discovered colleague - ' + colleague_name)
-                        if colleague_name in graph_nodes.nodes():
-                            graph_nodes.add_edge(user_name, colleague_name)
-                            if DEBUG:
-                                logger.debug('new edge - ' + user_name + ', ' + colleague_name)
-                        elif degree < DEFAULT_MAX_DEGREES_OF_SEPARATION \
-                                and colleague not in users_processed \
-                                and colleague not in users_to_do:
-                            users_to_do.append(colleague)
-
-                    if DEBUG:
-                        logger.debug('finished colleague discovery.')
-
-    if DEBUG:
-        logger.debug('Graph generation complete.')
+            users_processed.append((user_name, url))
+            if DEBUG:
+                logger.debug('processed users - ' + str(len(users_processed)))
 
     return
 
