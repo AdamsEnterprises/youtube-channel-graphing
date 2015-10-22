@@ -172,24 +172,25 @@ def generate_graph():
             logger.debug('new degree: ' + str(degree) + ' #######')
 
         while len(users_to_do) > 0:
-            user_queue.put(users_to_do.pop())
+            user = users_to_do.pop()
+            user_queue.put(user)
+            if DEBUG and user_queue.qsize() > 0:
+                logger.debug('added user to queue: ' + str(user))
 
         if DEBUG and user_queue.qsize() > 0:
             logger.debug('user queue size - ' + str(user_queue.qsize()))
 
         while True:
 
-            if DEBUG:
-                logger.debug('Entered queue processing.')
-
             # unload the next users from the queue.
             if user_queue.empty() or user_queue.qsize() < 1:
                 # ran out of next_users - stop analyzing this level
                 if DEBUG:
-                    logger.debug('about to end queue processing.')
+                    logger.debug('about to end queue processing for this degree.')
                 break
 
             if DEBUG:
+                # make sure logging statements are shown in correct order.
                 logger.internal_handler.flush()
 
             user_name, url = user_queue.get()
@@ -214,6 +215,8 @@ def generate_graph():
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
                     users_to_do.append(colleague)
+                    if DEBUG:
+                        logger.debug('new user to process:' + str(colleague))
 
             users_processed.append((user_name, url))
             if DEBUG:
