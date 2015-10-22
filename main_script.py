@@ -1,6 +1,12 @@
 __author__ = 'Roland'
 
-import urllib
+import urllib as urlmanager
+
+try:
+    urlmanager.urlopen
+except AttributeError:
+    from urllib import request as urlmanager
+
 import itertools
 import random
 import logging
@@ -91,7 +97,7 @@ def get_association_list(url):
     strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG, attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
 
     # scrape the tags representing related channels
-    channels = bs4.BeautifulSoup(urllib.urlopen(url), 'html.parser', parse_only=strainer)
+    channels = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
 
     ret_list = list()
 
