@@ -15,7 +15,6 @@ import multiprocessing
 
 import networkx
 import bs4
-# import matplotlib.pyplot as plt
 
 random.seed(-1)
 
@@ -164,7 +163,6 @@ def generate_graph():
 
     degree += 1
 
-
     while degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
         if DEBUG and degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
             logger.debug('new degree: ' + str(degree) + ' #######')
@@ -225,6 +223,6 @@ def show_graph():
     return
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     generate_graph()
     show_graph()
