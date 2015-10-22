@@ -68,7 +68,8 @@ RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
 RELATED_CHANNEL_TAG_NAME = 'h3'
 
 # defaults
-DEFAULT_FIRST_USER = (u'Cryaotic', URL_YOUTUBE_USER + u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
+DEFAULT_FIRST_USER = (u'Cryaotic', URL_YOUTUBE_USER +
+                      u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
 DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
 
 # for debugging
@@ -76,7 +77,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)-15s ### %(filename)-15s - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
+formatter = logging.Formatter('%(asctime)-15s ### %(filename)-15s' +
+                              ' - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
@@ -93,7 +95,8 @@ users_to_do = list()
 def get_association_list(url):
     # grab the webpage at the given url
 
-    strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG, attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
+    strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG,
+                                attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
 
     # scrape the tags representing related channels
     channels = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
@@ -218,7 +221,8 @@ def generate_graph():
 def show_graph():
     colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
     networkx.draw_spring(graph_nodes,
-                         node_color=[colors[graph_nodes.node[node]['degree']] for node in graph_nodes])
+                         node_color=[colors[graph_nodes.node[node]['degree']]
+                                     for node in graph_nodes])
 
     return
 
