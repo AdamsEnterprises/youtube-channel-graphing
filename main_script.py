@@ -76,11 +76,12 @@ DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+logger.internal_handler = ch
+logger.internal_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)-15s ### %(filename)-15s' +
                               ' - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+logger.internal_handler.setFormatter(formatter)
+logger.addHandler(logger.internal_handler)
 
 # global script objects
 graph_nodes = networkx.Graph()
@@ -188,7 +189,12 @@ def generate_graph():
                     logger.debug('about to end queue processing.')
                 break
 
+            if DEBUG:
+                logger.internal_handler.flush()
+
             user_name, url = user_queue.get()
+            if DEBUG:
+                logger.debug('retrieved next user: ' + user_name + " :: " + url)
             # list of (name, url) tuples with edge to this user url.
             associations = get_association_list(url)
             if DEBUG:
