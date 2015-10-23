@@ -155,17 +155,13 @@ class YoutubeGraphTestCases(unittest.TestCase):
             # TODO use more specific exception catching.
         except Exception as exp:
             self.fail('main_script.show_graph raised an Exception. Message is:\n' +
-                      e.message)
+                      exp.message)
 
     def test_graph_generation(self):
         """
         test the creation of the graph nodes and edges.
         :return:
         """
-
-        testing_first_user = (u'Markiplier',
-                              u'https://www.youtube.com/user/markiplierGAME/channels')
-        testing_degrees = 2
 
         test_data = (
             ('Markiplier', 'muyskerm', 'LordMinion777', 'yamimash',
@@ -248,8 +244,9 @@ class YoutubeGraphTestCases(unittest.TestCase):
         )
 
         # final preparation
-        main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = testing_degrees
-        main_script.DEFAULT_FIRST_USER = testing_first_user
+        main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
+        main_script.DEFAULT_FIRST_USER = (u'Markiplier',
+                                          u'https://www.youtube.com/user/markiplierGAME/channels')
 
         # the function to test
         main_script.generate_graph()
