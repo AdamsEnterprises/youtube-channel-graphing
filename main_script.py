@@ -177,12 +177,14 @@ def generate_graph():
             if DEBUG and user_queue.qsize() > 0:
                 logger.debug('added user to queue: ' + str(user))
 
-        if DEBUG and user_queue.qsize() > 0:
-            logger.debug('user queue size - ' + str(user_queue.qsize()))
-
         while True:
 
             # unload the next users from the queue.
+            if DEBUG:
+                logger.debug('Is Queue Empty? :: ' + str(user_queue.empty()))
+            if DEBUG and user_queue.qsize() > 0:
+                logger.debug('user queue size :: ' + str(user_queue.qsize()))
+
             if user_queue.empty() or user_queue.qsize() < 1:
                 # ran out of next_users - stop analyzing this level
                 if DEBUG:
