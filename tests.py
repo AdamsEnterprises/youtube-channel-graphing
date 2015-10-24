@@ -145,17 +145,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, '7')
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
-    def test_graph_view(self):
-        """
-        test the showing of the graph works without exceptions.
-        :return:
-        """
-        try:
-            main_script.show_graph()
-            # TODO use more specific exception catching.
-        except Exception as exp:
-            self.fail('main_script.show_graph raised an Exception. Message is:\n' +
-                      exp.message)
 
     def test_graph_generation(self):
         """
@@ -249,24 +238,24 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                           u'https://www.youtube.com/user/markiplierGAME/channels')
 
         # the function to test
-        main_script.generate_graph()
+        graph_nodes = main_script.generate_graph()
 
         # comparisons
         for user_list in test_data:
             source = user_list[0]
             associates = user_list[1:]
             # some duplicate comparisons may occur.
-            self.assertTrue(main_script.graph_nodes.has_node(source),
+            self.assertTrue(graph_nodes.has_node(source),
                             'Error: Expected to find (' + source +
                             ') in Nodes but did not.')
 
             for assoc in associates:
-                self.assertTrue(main_script.graph_nodes.has_node(assoc),
+                self.assertTrue(graph_nodes.has_node(assoc),
                                 "Error: Expected to find (" + assoc + ") " +
                                 "in Nodes but did not.\n" +
                                 "Current User_list=\n" + str(user_list))
-                self.assertTrue(main_script.graph_nodes.has_edge(source, assoc) or
-                                main_script.graph_nodes.has_edge(assoc, source),
+                self.assertTrue(graph_nodes.has_edge(source, assoc) or
+                                graph_nodes.has_edge(assoc, source),
                                 'Error: expected to find edge (' + assoc + ', '
                                 + source + ') but did not.\n' +
                                 "Current User_list=\n" + str(user_list))
