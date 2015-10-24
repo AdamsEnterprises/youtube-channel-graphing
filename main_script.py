@@ -21,43 +21,43 @@ random.seed(-1)
 DEBUG = True
 
 # TODO add argpharsing for CLI usage.
-
-
-# Argparse:
-#       first user url,     degrees of separation,  [first user name]
-#       [output file name, write graph data to file.]
-#       [output to console]
-#       [verbosity (info level logging)
-#           0 (default, always) - errors
-#           1 - low: current degree, number of users processed
-#           2 - medium: adding of nodes, edges
-#           3 - high: discovery of colleagues, current processing time, estimated remaining time.]
+# -u --url      <url to featured channel list>
+#           test:   url actually leads to valid featured channel webpage
+#           test:   url is no null
 #
-#           never shown: debugging logging.
-
-
-# what do we do with the next user? find colleagues and add user to the nodes.
-# what do we do when we find colleagues? add them to the queue if they are not in the queue.
-# what do we do if next user already is in nodes? skip it.
-# what do we do if a colleague is already in the nodes? add an edge from user to colleague.
-# what do we do when degree is below max? do all of the above.
-# what do we do when degree matches max? don't add colleagues to the queue.
-
-
-# start with default only in queue.
-# for each degree:
-#   for next user in queue:
-#       if user is in nodes?
-#           skip user, continue
-#       else
-#           add the user to the nodes
-#           grab the user's colleagues
-#           for each colleague
-#               if colleague is in nodes?
-#                   add edge from user to colleague
-#               else if degree < max-degree
-#                   add colleague to queue
-#       degree += 1
+# [-d --degrees]    <degrees of separation>
+#           ( if not specified, assume 1 degree.)
+#           test: degrees is not null
+#           test: degrees is an integer greater than 0.
+# [-n --name]   <name to attach to origin node>
+#           (if no name supplied, must generate name from featured channel webpage, only.)
+#           test:   name is not null
+#           test:   name is not null if not specified in options.
+# [-f -filename]    <file to write output graph data into>
+#           test:   filename is not null
+#           test:   filename is valid for underlying system.
+#           test:   produced file is not empty
+#           test:   produced file has expected nodes and edges
+#               cases:          <no nodes, no edges>
+#                               <1 node, no edges>
+#                               <2 nodes, 0 edges>
+#                               <2 nodes, 1 edge>
+#                               <3 nodes, 0 edges>
+#                               <3 nodes, 1 edge>
+#                               <3 nodes, 2 edges>
+#                               <7 nodes, 0 edges>
+#                               <7 nodes, 1 edge>
+#                               <7 nodes, 6 edges, not all nodes linked>
+#                               <7 nodes, 6 edges, all nodes linked>
+#                               <7 nodes, 21 edges, all nodes linked (max linkage for 7 nodes)>
+# [-v --verbosity]  <display info logging to console>
+#                   (default - 0: off)
+#                   (0: off, 1: errors only, 2: current degree and number of users processed...)
+#                   (3: new nodes, new edges, 4: date and time of message and colleagues discovered.)
+#           test:   verbosity level gives correct format response
+#           (need to capture logging messages for comparison)
+# [-h --help]   <help information on options>
+#           test: expected output produced.
 
 
 # important constants, for web scraping
