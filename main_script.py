@@ -240,10 +240,6 @@ def generate_graph():
                     GLOBAL_LOGGER.debug('about to end queue processing for this degree.')
                 break
 
-            if DEBUG:
-                # make sure logging statements are shown in correct order.
-                GLOBAL_LOGGER.internal_handler.flush()
-
             user_name, url = user_queue.get()
             if DEBUG:
                 GLOBAL_LOGGER.debug('retrieved next user: ' + user_name + " :: " + url)
