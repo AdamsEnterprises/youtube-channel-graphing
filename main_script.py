@@ -166,6 +166,40 @@ def generate_graph():
     creates a graphing object representing you tube users and associations.
     :return: a networkX graph object, containg users as nodes and relationships as edges.
     """
+
+    def _queue_next_users__to_do(user_list, queue):
+        """
+        transfer list of next users into the queue
+        :param user_list:   list of next users
+        :param queue:       queue to transfer to
+        :return:
+        """
+        while len(users_to_do) > 0:
+            user = user_list.pop()
+            queue.put(user)
+        return
+
+    def _process_colleague(origin, current_user, current_degree, user_graph):
+        """
+        add a colleague to the nodes and edges as needed. enlist the colleague if not already
+        processed.
+        :param origin:          user this colleague relates to
+        :param current_user:    the colleague
+        :param current_degree:  degree of separation between first ever user and this user
+        :param user_graph:      the graph to add nodes and edges to.
+        :return:
+        """
+        if not user_graph.has_node(current_user):
+            user_graph.add_node(current_user, degree=current_degree)
+            if DEBUG:
+                GLOBAL_LOGGER.debug('new graph node - ' + current_user)
+        if not user_graph.has_edge(origin, current_user) or \
+                user_graph.has_edge(current_user, origin):
+            user_graph.add_edge(origin, current_user)
+            if DEBUG:
+                GLOBAL_LOGGER.debug('new edge - ' + origin + ', ' + current_user)
+        return
+
     if DEBUG:
         GLOBAL_LOGGER.debug('Generating graph now...')
 
@@ -190,11 +224,7 @@ def generate_graph():
         if DEBUG and degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
             GLOBAL_LOGGER.debug('new degree: ' + str(degree) + ' #######')
 
-        while len(users_to_do) > 0:
-            user = users_to_do.pop()
-            user_queue.put(user)
-            if DEBUG and user_queue.qsize() > 0:
-                GLOBAL_LOGGER.debug('added user to queue: ' + str(user))
+        _queue_next_users__to_do(users_to_do, user_queue)
 
         while True:
 
@@ -210,10 +240,6 @@ def generate_graph():
                     GLOBAL_LOGGER.debug('about to end queue processing for this degree.')
                 break
 
-            if DEBUG:
-                # make sure logging statements are shown in correct order.
-                GLOBAL_LOGGER.internal_handler.flush()
-
             user_name, url = user_queue.get()
             if DEBUG:
                 GLOBAL_LOGGER.debug('retrieved next user: ' + user_name + " :: " + url)
@@ -223,21 +249,13 @@ def generate_graph():
                 GLOBAL_LOGGER.debug('retrieved associations.')
             for colleague in associations:
                 colleague_name, _ = colleague
-                if not graph_nodes.has_node(colleague_name):
-                    graph_nodes.add_node(colleague_name, degree=degree)
-                    if DEBUG:
-                        GLOBAL_LOGGER.debug('new graph node - ' + colleague_name)
-                if not graph_nodes.has_edge(user_name, colleague_name) or \
-                        graph_nodes.has_edge(colleague_name, user_name):
-                    graph_nodes.add_edge(user_name, colleague_name)
-                    if DEBUG:
-                        GLOBAL_LOGGER.debug('new edge - ' + user_name + ', ' + colleague_name)
+                _process_colleague(user_name, colleague_name, degree, graph_nodes)
                 if degree < DEFAULT_MAX_DEGREES_OF_SEPARATION \
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
                     users_to_do.append(colleague)
-                    if DEBUG:
-                        GLOBAL_LOGGER.debug('new user to process:' + str(colleague))
+                if DEBUG:
+                    GLOBAL_LOGGER.debug('new user to process:' + str(colleague_name))
 
             users_processed.append((user_name, url))
             if DEBUG:
