@@ -137,7 +137,7 @@ def generate_colours(value):
         raise ValueError("Parameter 'degree' must be greater than or equal to 1.")
     color_list = list()
     # get list of all possible colours.
-    colors = list()
+    colors_list = list()
     # for x colours required, there are x^3-2 colours produced
     factor = 2
     # rnumber of degrees is (0, ..., n) thus number of colours returned = n + 1
@@ -148,15 +148,15 @@ def generate_colours(value):
     for i in itertools.product(scale, scale, scale):
         # convert from (R, G, B)decimal to '#RRGGBB'hex
         code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-        colors.append(code)
+        colors_list.append(code)
     # dump existing colours, and black and white
-    del colors[0]
-    del colors[-1]
+    del colors_list[0]
+    del colors_list[-1]
     # create list of colours, unique per degree of separation
     for i in range(value + 1):
-        index = random.randint(0, len(colors) - 1)
-        color_list.append(colors[index])
-        del colors[index]
+        index = random.randint(0, len(colors_list) - 1)
+        color_list.append(colors_list[index])
+        del colors_list[index]
 
     return color_list
 
