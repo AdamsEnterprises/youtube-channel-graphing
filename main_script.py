@@ -234,7 +234,7 @@ def generate_graph():
             if DEBUG and user_queue.qsize() > 0:
                 GLOBAL_LOGGER.debug('user queue size :: ' + str(user_queue.qsize()))
 
-            if user_queue.empty() or user_queue.qsize() < 1:
+            if user_queue.empty() and user_queue.qsize() < 1:
                 # ran out of next_users - stop analyzing this level
                 if DEBUG:
                     GLOBAL_LOGGER.debug('about to end queue processing for this degree.')
