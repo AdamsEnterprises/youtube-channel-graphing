@@ -248,20 +248,9 @@ def generate_graph():
     return graph_nodes
 
 
-def show_graph(graph_nodes):
-    """
-    show a given graph to the user in a graphical form.
-    :param graph_nodes: networkx graph object representing users and relationships
-    :return:
-    """
-    colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
-    networkx.draw_spring(graph_nodes,
-                         node_color=[colors[graph_nodes.node[node]['degree']]
-                                     for node in graph_nodes])
-
-    return
-
-
 if __name__ == '__main__':
     youtube_user_graph = generate_graph()
-    show_graph(youtube_user_graph)
+    colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
+    networkx.draw_spring(youtube_user_graph,
+                         node_color=[colors[youtube_user_graph.node[node]['degree']]
+                                     for node in youtube_user_graph])
