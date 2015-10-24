@@ -131,13 +131,20 @@ def generate_colours(value):
     :param value: an integer influencing how many colours to create
     :return: a list of (value + 1) colours
     """
+
+    def _create_colour_code_permutations(value_range):
+        code_list = list()
+        for i in itertools.product(scale, scale, scale):
+            # convert from (R, G, B)decimal to '#RRGGBB'hex
+            code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
+            code_list.append(code)
+        return code_list
+
     if not isinstance(value, int):
-        raise TypeError("Parameter 'degree' must be Integer.")
+        raise TypeError("Parameter must be Integer.")
     if value <= 0:
-        raise ValueError("Parameter 'degree' must be greater than or equal to 1.")
+        raise ValueError("Parameter must be greater than or equal to 1.")
     color_list = list()
-    # get list of all possible colours.
-    colors_list = list()
     # for x colours required, there are x^3-2 colours produced
     factor = 2
     # rnumber of degrees is (0, ..., n) thus number of colours returned = n + 1
@@ -145,25 +152,24 @@ def generate_colours(value):
         factor += 1
     scale_factor = int((256.0 / (factor - 1) - 0.1))
     scale = range(0, 256, scale_factor)
-    for i in itertools.product(scale, scale, scale):
-        # convert from (R, G, B)decimal to '#RRGGBB'hex
-        code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-        colors_list.append(code)
+    code_list = _create_colour_code_permutations(scale)
     # dump existing colours, and black and white
-    del colors_list[0]
-    del colors_list[-1]
+    del code_list[0]
+    del code_list[-1]
     # create list of colours, unique per degree of separation
     for i in range(value + 1):
-        index = random.randint(0, len(colors_list) - 1)
-        color_list.append(colors_list[index])
-        del colors_list[index]
+        index = random.randint(0, len(code_list) - 1)
+        color_list.append(code_list[index])
+        del code_list[index]
 
     return color_list
 
 
-def generate_graph():
+def generate_relationship_graph(graph_nodes, max_degree, first_user):
     """
     creates a graphing object representing you tube users and associations.
+    :param graph_object: the object storing the graph nodes and edges.
+        must conform to networkx.Graph object API.
     :return: a networkX graph object, containg users as nodes and relationships as edges.
     """
 
@@ -200,28 +206,15 @@ def generate_graph():
                 GLOBAL_LOGGER.debug('new edge - ' + origin + ', ' + current_user)
         return
 
-    if DEBUG:
-        GLOBAL_LOGGER.debug('Generating graph now...')
-
-    # graphing object
-    graph_nodes = networkx.Graph()
-    graph_nodes.clear()
-
     # pylint: disable=maybe-no-member
     user_queue = multiprocessing.Queue()
     users_processed = list()
     users_to_do = list()
+    users_to_do.append(first_user)
+    degree = 1
 
-    degree = 0
-    users_to_do.append(DEFAULT_FIRST_USER)
-    graph_nodes.add_node(DEFAULT_FIRST_USER[0], degree=degree)
-    if DEBUG:
-        GLOBAL_LOGGER.debug('new graph node - ' + DEFAULT_FIRST_USER[0])
-
-    degree += 1
-
-    while degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
-        if DEBUG and degree <= DEFAULT_MAX_DEGREES_OF_SEPARATION:
+    while degree <= max_degree:
+        if DEBUG and degree <= max_degree:
             GLOBAL_LOGGER.debug('new degree: ' + str(degree) + ' #######')
 
         _queue_next_users__to_do(users_to_do, user_queue)
@@ -250,7 +243,7 @@ def generate_graph():
             for colleague in associations:
                 colleague_name, _ = colleague
                 _process_colleague(user_name, colleague_name, degree, graph_nodes)
-                if degree < DEFAULT_MAX_DEGREES_OF_SEPARATION \
+                if degree < max_degree \
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
                     users_to_do.append(colleague)
@@ -262,13 +255,23 @@ def generate_graph():
                 GLOBAL_LOGGER.debug('processed users - ' + str(len(users_processed)))
 
         degree += 1
-
     return graph_nodes
 
 
-if __name__ == '__main__':
-    youtube_user_graph = generate_graph()
+def main_function():
+    # graphing object
+    youtube_user_graph = networkx.Graph()
+    youtube_user_graph.clear()
+    first_user = DEFAULT_FIRST_USER
+    max_degree = DEFAULT_MAX_DEGREES_OF_SEPARATION
+
+    youtube_user_graph.add_node(first_user[0], degree=0)
+    generate_relationship_graph(youtube_user_graph, max_degree, first_user)
+
     colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
     networkx.draw_spring(youtube_user_graph,
                          node_color=[colors[youtube_user_graph.node[node]['degree']]
                                      for node in youtube_user_graph])
+
+if __name__ == '__main__':
+    main_function()
