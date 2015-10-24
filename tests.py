@@ -7,6 +7,7 @@ __author__ = 'Roland'
 import unittest
 
 import nose
+import networkx
 
 import main_script
 
@@ -145,7 +146,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, '7')
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
-
     def test_graph_generation(self):
         """
         test the creation of the graph nodes and edges.
@@ -232,13 +232,21 @@ class YoutubeGraphTestCases(unittest.TestCase):
              'PewDiePie', 'CinnamonToastKen', 'LordMinion777')
         )
 
-        # final preparation
         main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
         main_script.DEFAULT_FIRST_USER = (u'Markiplier',
                                           u'https://www.youtube.com/user/markiplierGAME/channels')
 
+        # final preparation
+        graph_nodes = networkx.Graph()
+        graph_nodes.add_node(main_script.DEFAULT_FIRST_USER[0],
+                             degree=main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION)
+
         # the function to test
-        graph_nodes = main_script.generate_graph()
+        main_script.DEBUG = False
+        main_script.generate_relationship_graph(graph_nodes,
+                                                main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION,
+                                                main_script.DEFAULT_FIRST_USER)
+        main_script.DEBUG = True
 
         # comparisons
         for user_list in test_data:
@@ -259,6 +267,19 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                 'Error: expected to find edge (' + assoc + ', '
                                 + source + ') but did not.\n' +
                                 "Current User_list=\n" + str(user_list))
+
+    def test_script(self):
+        """
+        run the main_script as a script and make sure there are no errors.
+        :return:
+        """
+        try:
+            import main_script
+            main_script.DEBUG = False
+            main_script.main_function()
+            main_script.DEBUG = True
+        except Exception:
+            self.fail()
 
 
 if __name__ == '__main__':
