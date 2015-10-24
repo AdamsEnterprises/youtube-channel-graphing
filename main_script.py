@@ -132,9 +132,13 @@ def generate_colours(value):
     :return: a list of (value + 1) colours
     """
 
-    def _create_colour_code_permutations(value_range):
+    def create_colour_code_permutations(value_range):
+        """
+        # create a list of all colour code permutations, depending on a given range of values.
+        :return: list of colour codes
+        """
         code_list = list()
-        for i in itertools.product(scale, scale, scale):
+        for i in itertools.product(value_range, value_range, value_range):
             # convert from (R, G, B)decimal to '#RRGGBB'hex
             code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
             code_list.append(code)
@@ -152,15 +156,17 @@ def generate_colours(value):
         factor += 1
     scale_factor = int((256.0 / (factor - 1) - 0.1))
     scale = range(0, 256, scale_factor)
-    code_list = _create_colour_code_permutations(scale)
+    code_list = create_colour_code_permutations(scale)
     # dump existing colours, and black and white
     del code_list[0]
     del code_list[-1]
     # create list of colours, unique per degree of separation
-    for i in range(value + 1):
+
+    while value >= 0:
         index = random.randint(0, len(code_list) - 1)
         color_list.append(code_list[index])
         del code_list[index]
+        value -= 1
 
     return color_list
 
@@ -259,6 +265,10 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user):
 
 
 def main_function():
+    """
+    the runner function of the main_script
+    :return:
+    """
     # graphing object
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
