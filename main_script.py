@@ -36,10 +36,6 @@ DEBUG = True
 #           ( if not specified, assume 1 degree.)
 #           test: degrees is not null
 #           test: degrees is an integer greater than 0.
-# [-n --name]   <name to attach to origin node>
-#           (if no name supplied, must generate name from featured channel webpage, only.)
-#           test:   name is not null
-#           test:   name is not null if not specified in options.
 # [-f -filename]    <file to write output graph data into>
 #           test:   filename is not null
 #           test:   filename is valid for underlying system.
@@ -97,15 +93,43 @@ GLOBAL_LOGGER.addHandler(GLOBAL_LOGGER.internal_handler)
 
 
 def setup_arg_parser():
+    """
+    prepare and set up the argumentParser for this script
+    :return: the argumentParser
+    """
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
-    # TODO: design and add arguments
-
+    parser.add_argument('url', action='store', type=str,
+                        help="A url to a listing of featured channels. This is treated" +
+                             " as the initial Youtube user.")
+    parser.add_argument('-d','--degree', action='store', type=int, default=1,
+                        help="The degree of separation to process to. Must be an integer" +
+                             " greater than 0. Default is 1.")
+    parser.add_argument('-f', '--filename', action='store', type=str,
+                        help="A file to record graphing data to. Must be a valid name for"
+                             + "the operating system. If ommitted then no file is made.")
+    parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
+                        choices=[1,2,3,4],
+                        help="""Display additional information to the console during processing.
+                             The default (if ommitted) is to not display any information.
+                             Possible choices are:
+                             1 - Non-critical Errors and warnings.
+                             2 - Total users processed, the current degree of separation being processed.
+                             3 - New users, and relationships between users, found.
+                             4 - Fully formatted logging with date and time. Useful for bug reports.""")
+    parser.add_argument('-s', '--show_graph', action='store_true', default=False,
+                        help="Display a visual depiction of the graph in a separate window, when processing is complete.")
     return parser
 
 
 def parse_arguments(parser, args):
+    """
+    Parse a sequence of arguments, given an argumentParser and a list of arguments.
+    :param parser:  the argumentParser to use.
+    :param args:    list of arguments to process
+    :return:        the parsed Arguments object.
+    """
     if args is None:
         arguments = parser.parse_args()
     else:
