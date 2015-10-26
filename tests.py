@@ -4,6 +4,8 @@
 
 __author__ = 'Roland'
 
+# TODO TODO :: find out how to nosetest with arguments.
+
 import unittest
 
 import nose
@@ -386,11 +388,17 @@ class YoutubeGraphTestCases(unittest.TestCase):
         run the main_script as a script and make sure there are no errors.
         :return:
         """
+
+        DEFAULT_FIRST_USER = 'https://www.youtube.com/user/ChaoticMonki/channels'
+        import subprocess
+
         try:
-            import main_script
-            main_script.DEBUG = False
-            main_script.main_function()
-            main_script.DEBUG = True
+            # import main_script
+            # main_script.DEBUG = False
+            # main_script.main_function()
+            # main_script.DEBUG = True
+            status = subprocess.call(['python', 'main_script.py', DEFAULT_FIRST_USER])
+            self.assertEqual(status, 0)
         except Exception:
             self.fail()
 
