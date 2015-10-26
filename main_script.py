@@ -231,7 +231,7 @@ def generate_colours(value):
     return color_list
 
 
-def generate_relationship_graph(graph_nodes, max_degree, first_user, filename, verbosity):
+def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     """
     creates a graphing object representing you tube users and associations.
     :param graph_object: the object storing the graph nodes and edges.
@@ -251,7 +251,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, filename, v
             queue.put(user)
         return
 
-    def _process_colleague(origin, current_user, current_degree, user_graph, filename, verbosity):
+    def _process_colleague(origin, current_user, current_degree, user_graph, verbosity):
         """
         add a colleague to the nodes and edges as needed. enlist the colleague if not already
         processed.
@@ -308,7 +308,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, filename, v
                 GLOBAL_LOGGER.debug('retrieved associations.')
             for colleague in associations:
                 colleague_name, _ = colleague
-                _process_colleague(user_name, colleague_name, degree, graph_nodes)
+                _process_colleague(user_name, colleague_name, degree, graph_nodes, verbosity)
                 if degree < max_degree \
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
@@ -349,7 +349,7 @@ def main_function():
     # TODO verbosity setup
 
     youtube_user_graph.add_node(first_user[0], degree=0)
-    generate_relationship_graph(youtube_user_graph, max_degree, first_user, None, 0)
+    generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
     colors = generate_colours(max_degree)
     networkx.draw_spring(youtube_user_graph,
