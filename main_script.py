@@ -18,16 +18,17 @@ import random
 import logging
 import multiprocessing
 #  from Queue import Empty as EmptyQueueException
+import argparse
 
 import networkx
 import bs4
+import matplotlib.pyplot as plt
 
 random.seed(-1)
 
 DEBUG = True
 
-# TODO add argpharsing for CLI usage.
-# -u --url      <url to featured channel list>
+# url      <url to featured channel list>
 #           test:   url actually leads to valid featured channel webpage
 #           test:   url is no null
 #
@@ -63,6 +64,8 @@ DEBUG = True
 #                       and colleagues discovered.)
 #           test:   verbosity level gives correct format response
 #           (need to capture logging messages for comparison)
+# [-s --show_graph]
+#                   show a visual depiction of the resultant graph.
 # [-h --help]   <help information on options>
 #           test: expected output produced.
 
@@ -72,11 +75,13 @@ URL_YOUTUBE_USER = u'https://www.youtube.com'
 SUBURL_YOUTUBE_CHANNELS = u'/channels?view=60'
 RELATED_CHANNELS_TAG = 'li'
 RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
-RELATED_CHANNEL_TAG_NAME = 'h3'
+RELATED_CHANNEL_SUBTAG = 'h3'
+RELATED_CHANNELS_SOURCE_TAG_ID = 'c4-primary-header-contents'
+RELATED_CHANNELS_SOURCE_SUBTAG = 'a'
 
 # defaults
-DEFAULT_FIRST_USER = (u'Cryaotic', URL_YOUTUBE_USER +
-                      u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS)
+DEFAULT_FIRST_USER = [u'Cryaotic', URL_YOUTUBE_USER +
+                      u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS]
 DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
 
 # for debugging
@@ -89,6 +94,25 @@ GLOBAL_LOGGER.internal_formatter = \
                       ' - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
 GLOBAL_LOGGER.internal_handler.setFormatter(GLOBAL_LOGGER.internal_formatter)
 GLOBAL_LOGGER.addHandler(GLOBAL_LOGGER.internal_handler)
+
+
+def setup_arg_parser():
+    parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
+                                                 Youtube user and their relationships to other
+                                                 users.""")
+    # TODO: design and add arguments
+
+    return parser
+
+
+def parse_arguments(parser, args):
+    if args is None:
+        arguments = parser.parse_args()
+    else:
+        arguments = parser.parse_args(args)
+    # TODO: add implementation and parsing of arguments.
+
+    return arguments
 
 
 def get_association_list(url):
@@ -111,7 +135,7 @@ def get_association_list(url):
             continue
         # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
         try:
-            element = channel.find(RELATED_CHANNEL_TAG_NAME)
+            element = channel.find(RELATED_CHANNEL_SUBTAG)
             element_anchor = element.a
             user_name = element_anchor['title']
             link = URL_YOUTUBE_USER + element_anchor['href'] + SUBURL_YOUTUBE_CHANNELS
@@ -125,6 +149,18 @@ def get_association_list(url):
     return ret_list
 
 
+def extract_first_user_name(url):
+    """
+    grab the source user name at the given url
+    :param url: the url to retrieve source user name from.
+    :return: string, the source user name.
+    """
+    strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_SOURCE_TAG_ID})
+    # scrape the tag with the user name
+    name_tag = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    return name_tag.find(RELATED_CHANNELS_SOURCE_SUBTAG)['title']
+
+
 def generate_colours(value):
     """
     create a list of random colours.
@@ -132,9 +168,13 @@ def generate_colours(value):
     :return: a list of (value + 1) colours
     """
 
-    def _create_colour_code_permutations(value_range):
+    def create_colour_code_permutations(value_range):
+        """
+        # create a list of all colour code permutations, depending on a given range of values.
+        :return: list of colour codes
+        """
         code_list = list()
-        for i in itertools.product(scale, scale, scale):
+        for i in itertools.product(value_range, value_range, value_range):
             # convert from (R, G, B)decimal to '#RRGGBB'hex
             code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
             code_list.append(code)
@@ -152,20 +192,22 @@ def generate_colours(value):
         factor += 1
     scale_factor = int((256.0 / (factor - 1) - 0.1))
     scale = range(0, 256, scale_factor)
-    code_list = _create_colour_code_permutations(scale)
+    code_list = create_colour_code_permutations(scale)
     # dump existing colours, and black and white
     del code_list[0]
     del code_list[-1]
     # create list of colours, unique per degree of separation
-    for i in range(value + 1):
+
+    while value >= 0:
         index = random.randint(0, len(code_list) - 1)
         color_list.append(code_list[index])
         del code_list[index]
+        value -= 1
 
     return color_list
 
 
-def generate_relationship_graph(graph_nodes, max_degree, first_user):
+def generate_relationship_graph(graph_nodes, max_degree, first_user, filename, verbosity):
     """
     creates a graphing object representing you tube users and associations.
     :param graph_object: the object storing the graph nodes and edges.
@@ -185,7 +227,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user):
             queue.put(user)
         return
 
-    def _process_colleague(origin, current_user, current_degree, user_graph):
+    def _process_colleague(origin, current_user, current_degree, user_graph, filename, verbosity):
         """
         add a colleague to the nodes and edges as needed. enlist the colleague if not already
         processed.
@@ -259,19 +301,37 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user):
 
 
 def main_function():
-    # graphing object
+    """
+    the runner function of the main_script
+    :return:
+    """
+
+    parser = setup_arg_parser()
+    arguments = parse_arguments(parser, None)
+
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
-    first_user = DEFAULT_FIRST_USER
-    max_degree = DEFAULT_MAX_DEGREES_OF_SEPARATION
+    try:
+        first_user = (arguments.user_name, arguments.url)
+    except AttributeError:
+        first_user = (extract_first_user_name(arguments.url), arguments.url)
+    try:
+        max_degree = arguments.degree
+    except:
+        max_degree = DEFAULT_MAX_DEGREES_OF_SEPARATION
+
+    # TODO filename argument extraction, preparing file handler
+
+    # TODO verbosity setup
 
     youtube_user_graph.add_node(first_user[0], degree=0)
-    generate_relationship_graph(youtube_user_graph, max_degree, first_user)
+    generate_relationship_graph(youtube_user_graph, max_degree, first_user, None, 0)
 
-    colors = generate_colours(DEFAULT_MAX_DEGREES_OF_SEPARATION)
+    colors = generate_colours(max_degree)
     networkx.draw_spring(youtube_user_graph,
                          node_color=[colors[youtube_user_graph.node[node]['degree']]
                                      for node in youtube_user_graph])
+    plt.show()
 
 if __name__ == '__main__':
     main_function()

@@ -146,6 +146,76 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, '7')
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
+    def test_args_help(self):
+        self.skipTest("Test is not complete")
+
+        expected_response = """usage: pydevconsole.py [-h]
+
+                    Collect and/or show graphing data upon a Youtube user and their relationships
+                    to other users.
+
+                    optional arguments:
+                      -h, --help  show this help message and exit"""
+
+        parser = main_script.setup_arg_parser()
+        response = main_script.parse_arguments(parser, ['-h'])
+        self.assertEqual(response, expected_response, "Error: received help text did not match" +
+                         " what was expected.")
+
+    def test_args_degrees(self):
+        self.skipTest("Test is not complete")
+        parser = main_script.setup_arg_parser()
+
+        testing_degrees = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+        for test_degree in testing_degrees:
+            response = main_script.parse_arguments(parser, ['', '-n', 'origin', '-d', test_degree])
+            self.assertEqual(str(response),
+                             "Namespace(['', '-n', 'origin', '-d', '" + test_degree + "'])")
+            self.assertTrue(response.degree, int(test_degree))
+
+        testing_degrees = ['0', '-1', 'a', '!']
+        for test_degree in testing_degrees:
+            self.assertRaises(Exception, main_script.parse_arguments,
+                              *['', '-n', 'origin', '-d', test_degree])
+
+    def test_args_first_user_name(self):
+        self.skipTest("Test is not complete")
+        parser = main_script.setup_arg_parser()
+
+        response = main_script.parse_arguments(parser,
+                                               [
+                                                   'https://www.youtube.com/user/LastWeekTonight/channels',
+                                                   '-n', 'BlahBlah'])
+        self.assertEqual(str(response),
+                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'" +
+                         ",'-n', 'BlahBlah'])")
+        self.assertEqual(response.user_name, 'BlahBlah')
+
+        response = main_script.parse_arguments(parser,
+                                               [
+                                                   'https://www.youtube.com/user/LastWeekTonight/channels'])
+        self.assertEqual(str(response),
+                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'])")
+        self.assertEqual(response.user_name, 'LastWeekTonight')
+
+    def test_args_filename(self):
+        self.skipTest("Test is not complete")
+        parser = main_script.setup_arg_parser()
+
+        response = main_script.parse_arguments(parser,
+                                               [
+                                                   'https://www.youtube.com/user/LastWeekTonight/channels',
+                                                   '-f', 'graph.out'])
+        self.assertEqual(str(response),
+                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'" +
+                         ",'-f', 'graph.out'])")
+        self.assertEqual(response.filename, 'graph.out')
+
+        # TODO: check file contents and assert they are as expected.
+
+    # TODO: verbosity
+    # TODO: show-graph
+
     def test_graph_generation(self):
         """
         test the creation of the graph nodes and edges.
