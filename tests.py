@@ -64,6 +64,8 @@ class YoutubeGraphTestCases(unittest.TestCase):
     Tests for the youtube-graph script
     """
 
+    TESTING_DEFAULT_URL_ARG = 'https://www.youtube.com/user/LastWeekTonight/channels'
+
     def test_collect_associations(self):
         """
         test an expected set of associations is created,
@@ -146,6 +148,32 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, '7')
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
+    def test_args_url(self):
+        self.skipTest("Test is not complete")
+        parser = main_script.setup_arg_parser()
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+
+        test_name = 'LastWeekTonight'
+        # TODO: correct the colleague list
+        test_user_colleagues= ['muyskerm', 'LordMinion777', 'yamimash',
+             'LixianTV', 'GameGrumps', 'Egoraptor',
+             'Ninja Sex Party', 'RubberNinja', 'Cyndago', 'Matthias',
+             'TheRPGMinx', 'jacksepticeye',
+             'CinnamonToastKen', 'Cryaotic']
+
+        name = main_script.extract_first_user_name(response.url)
+        self.assertEqual(name, test_name)
+
+        associations = main_script.get_association_list(response.url)
+        # for easier comparison
+        associations.sort()
+        test_user_colleagues.sort()
+        self.assertEqual(len(associations), len(test_user_colleagues))
+        for i in range(len(associations)):
+            self.assertEqual(associations[i], test_user_colleagues[i])
+
+
+
     def test_args_help(self):
         self.skipTest("Test is not complete")
 
@@ -158,7 +186,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
                       -h, --help  show this help message and exit"""
 
         parser = main_script.setup_arg_parser()
-        response = main_script.parse_arguments(parser, ['-h'])
+        response = parser.parse_args(['-h'])
         self.assertEqual(response, expected_response, "Error: received help text did not match" +
                          " what was expected.")
 
@@ -166,55 +194,70 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.skipTest("Test is not complete")
         parser = main_script.setup_arg_parser()
 
+        test_default_degree = 1
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        self.assertTrue(response.degree, test_default_degree)
+
         testing_degrees = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         for test_degree in testing_degrees:
-            response = main_script.parse_arguments(parser, ['', '-n', 'origin', '-d', test_degree])
-            self.assertEqual(str(response),
-                             "Namespace(['', '-n', 'origin', '-d', '" + test_degree + "'])")
+            response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
         testing_degrees = ['0', '-1', 'a', '!']
         for test_degree in testing_degrees:
-            self.assertRaises(Exception, main_script.parse_arguments,
-                              *['', '-n', 'origin', '-d', test_degree])
-
-    def test_args_first_user_name(self):
-        self.skipTest("Test is not complete")
-        parser = main_script.setup_arg_parser()
-
-        response = main_script.parse_arguments(parser,
-                                               [
-                                                   'https://www.youtube.com/user/LastWeekTonight/channels',
-                                                   '-n', 'BlahBlah'])
-        self.assertEqual(str(response),
-                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'" +
-                         ",'-n', 'BlahBlah'])")
-        self.assertEqual(response.user_name, 'BlahBlah')
-
-        response = main_script.parse_arguments(parser,
-                                               [
-                                                   'https://www.youtube.com/user/LastWeekTonight/channels'])
-        self.assertEqual(str(response),
-                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'])")
-        self.assertEqual(response.user_name, 'LastWeekTonight')
+            self.assertRaises(Exception, parser.parse_args,
+                              *[self.TESTING_DEFAULT_URL_ARG, '-d', test_degree])
 
     def test_args_filename(self):
         self.skipTest("Test is not complete")
         parser = main_script.setup_arg_parser()
 
-        response = main_script.parse_arguments(parser,
-                                               [
-                                                   'https://www.youtube.com/user/LastWeekTonight/channels',
-                                                   '-f', 'graph.out'])
-        self.assertEqual(str(response),
-                         "Namespace(['https://www.youtube.com/user/LastWeekTonight/channels'" +
-                         ",'-f', 'graph.out'])")
-        self.assertEqual(response.filename, 'graph.out')
+        test_default_filename = None
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        self.assertEqual(response.filename, test_default_filename)
 
-        # TODO: check file contents and assert they are as expected.
+        test_filename = 'graph.out'
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG,
+                                     '-f', test_filename])
+        self.assertEqual(response.filename, test_filename)
 
-    # TODO: verbosity
-    # TODO: show-graph
+    def test_args_verbose(self):
+        self.skipTest("Test is not complete")
+        testing_verbosity = [1,2,3,4]
+        parser = main_script.setup_arg_parser()
+
+        test_verbose = 0
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        self.assertEqual(response.verbose, test_verbose)
+
+        for test_verbose in testing_verbosity:
+            response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG,
+                                         '-v', str(test_verbose)])
+            self.assertEqual(response.verbose, test_verbose)
+
+        testing_verbosity = [0, -1, 5]
+        for test_verbose in testing_verbosity:
+            self.assertRaises(Exception, parser.parse_args,
+                              *[self.TESTING_DEFAULT_URL_ARG, '-v', test_verbose])
+
+    def test_args_show_graph(self):
+        self.skipTest("Test is not complete.")
+        parser = main_script.setup_arg_parser()
+
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG, '-s'])
+        self.assertTrue(response.show_graph)
+
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        self.assertFalse(response.show_graph)
+
+
+    # TODO: check file contents and assert they are as expected.
+
+    # TODO: check filename is valid for the underlying OS
+
+    # TODO: check verbosity output - collect from stdout and see if it matches expected format
+
+    # TODO: check for error being raised if url is not valid.
 
     def test_graph_generation(self):
         """
