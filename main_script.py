@@ -97,6 +97,10 @@ GLOBAL_LOGGER.addHandler(GLOBAL_LOGGER.internal_handler)
 
 
 def setup_arg_parser():
+    """
+    prepare and set up the argumentParser for this script
+    :return: the argumentParser
+    """
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
@@ -106,6 +110,12 @@ def setup_arg_parser():
 
 
 def parse_arguments(parser, args):
+    """
+    Parse a sequence of arguments, given an argumentParser and a list of arguments.
+    :param parser:  the argumentParser to use.
+    :param args:    list of arguments to process
+    :return:        the parsed Arguments object.
+    """
     if args is None:
         arguments = parser.parse_args()
     else:

@@ -315,7 +315,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         main_script.DEBUG = False
         main_script.generate_relationship_graph(graph_nodes,
                                                 main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION,
-                                                main_script.DEFAULT_FIRST_USER)
+                                                main_script.DEFAULT_FIRST_USER, None, 0)
         main_script.DEBUG = True
 
         # comparisons
