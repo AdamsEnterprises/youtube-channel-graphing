@@ -83,6 +83,7 @@ DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
 # for debugging
 GLOBAL_LOGGER = logging.getLogger(__name__)
 GLOBAL_LOGGER.setLevel(logging.DEBUG)
+# TODO: shift global logger setup into subroutines, call from main_function.
 GLOBAL_LOGGER.internal_handler = logging.StreamHandler()
 GLOBAL_LOGGER.internal_handler.setLevel(logging.DEBUG)
 GLOBAL_LOGGER.internal_formatter = \
@@ -103,27 +104,27 @@ def setup_arg_parser():
     parser.add_argument('url', action='store', type=str,
                         help="A url to a listing of featured channels. This is treated" +
                              " as the initial Youtube user.")
-    parser.add_argument('-d','--degree', action='store', type=int, default=1,
+    parser.add_argument('-d', '--degree', action='store', type=int, default=1,
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
                         help="A file to record graphing data to. Must be a valid name for"
-                             + "the operating system. If ommitted then no file is made.")
+                             + "the operating system. If omitted then no file is made.")
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
-                        choices=[1,2,3,4],
-                        help="""Display additional information to the console during processing.
-                             The default (if ommitted) is to not display any information.
-                             Possible choices are:
-                             1 - Non-critical Errors and warnings.
-                             2 - Total users processed, the current degree of separation being processed.
-                             3 - New users, and relationships between users, found.
-                             4 - Fully formatted logging with date and time. Useful for bug reports.""")
+                choices=[1, 2, 3, 4],
+                help="""Display additional information to the console during processing.
+                     The default (if ommitted) is to not display any information.
+                     Possible choices are:
+                     1 - Non-critical Errors and warnings.
+                     2 - Total users processed, the current degree of separation being processed.
+                     3 - New users, and relationships between users, found.
+                     4 - Fully formatted logging with date and time. Useful for bug reports.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
-                        help="Display a visual depiction of the graph in a separate window, when processing is complete.")
+                help="Display a visual depiction of the graph in a separate window, when processing is complete.")
     return parser
 
 
-def parse_arguments(parser, args):
+def verify_arguments(parser, args):
     """
     Parse a sequence of arguments, given an argumentParser and a list of arguments.
     :param parser:  the argumentParser to use.
@@ -234,7 +235,7 @@ def generate_colours(value):
 def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     """
     creates a graphing object representing you tube users and associations.
-    :param graph_object: the object storing the graph nodes and edges.
+    :param graph_nodes: the object storing the graph nodes and edges.
         must conform to networkx.Graph object API.
     :return: a networkX graph object, containg users as nodes and relationships as edges.
     """
@@ -331,31 +332,28 @@ def main_function():
     """
 
     parser = setup_arg_parser()
-    arguments = parse_arguments(parser, None)
+    arguments = verify_arguments(parser, None)
+    first_user = (extract_first_user_name(arguments.url), arguments.url)
+    max_degree = arguments.degree
 
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
-    try:
-        first_user = (arguments.user_name, arguments.url)
-    except AttributeError:
-        first_user = (extract_first_user_name(arguments.url), arguments.url)
-    try:
-        max_degree = arguments.degree
-    except:
-        max_degree = DEFAULT_MAX_DEGREES_OF_SEPARATION
-
-    # TODO filename argument extraction, preparing file handler
 
     # TODO verbosity setup
 
     youtube_user_graph.add_node(first_user[0], degree=0)
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
-    colors = generate_colours(max_degree)
-    networkx.draw_spring(youtube_user_graph,
-                         node_color=[colors[youtube_user_graph.node[node]['degree']]
-                                     for node in youtube_user_graph])
-    plt.show()
+    if arguments.filename is not None:
+        pass
+        # TODO record graph data to file.
+
+    if arguments.show_graph:
+        colors = generate_colours(max_degree)
+        networkx.draw_spring(youtube_user_graph,
+                            node_color=[colors[youtube_user_graph.node[node]['degree']]
+                                        for node in youtube_user_graph])
+        plt.show()
 
 if __name__ == '__main__':
     main_function()
