@@ -132,43 +132,50 @@ def verify_arguments(parser, args):
     :param args:    list of arguments to process
     :return:        the parsed Arguments object.
     """
-    if args is None:
-        arguments = parser.parse_args()
-    else:
-        arguments = parser.parse_args(args)
 
-    try:
-        # check if filename is valid
-        if arguments.filename is not None:
-            for symbol in "\"\\|/?,<>:;'{[}]*&^%":
-                assert( symbol not in arguments.filename)
-    except AssertionError:
-        raise ValueError("filename contains invalid symbols. Please see the help section for more"
-                         + " information.")
-
-    try:
-        # check for malformed urls
-        assert(arguments.url is not None)
-        assert(len(arguments.url) > 0)
+    def _assert_valid_filename():
         try:
-            url, params = arguments.url.split('?')
-        except ValueError:
-            url = arguments.url
-            params = ''
+            # check if filename is valid
+            if arguments.filename is not None:
+                for symbol in "\"\\|/?,<>:;'{[}]*&^%":
+                    assert symbol not in arguments.filename
+        except AssertionError:
+            raise ValueError("""filename contains invalid symbols. Please
+                             see the help section for more information.""")
+
+    def _assert_valid_channel_url():
         # check correct youtube url for featured channels
-        assert( ( '/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS))
+        assert ('/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS)
         temp = url.rsplit('/', 2)[0]
         # expecting origin url in user format.
-        assert(temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER))
+        assert temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER)
         # don't check params - just replace them with the correct ones, which we already know
         if ('?' + params) != SUBURL_CHANNEL_PARAMS:
             arguments.url = url + SUBURL_CHANNEL_PARAMS
         # fully check that this url actually works
         name = extract_first_user_name(arguments.url)
         # should raise ValueError if cannot parse associates.
-        associates = get_association_list(arguments.url)
-        if (len(name) == 0):
+        get_association_list(arguments.url)
+        if len(name) == 0:
             raise AssertionError
+
+    if args is None:
+        arguments = parser.parse_args()
+    else:
+        arguments = parser.parse_args(args)
+
+    _assert_valid_filename()
+
+    try:
+        # check for malformed urls
+        assert arguments.url is not None
+        assert len(arguments.url) > 0
+        try:
+            url, params = arguments.url.split('?')
+        except ValueError:
+            url = arguments.url
+            params = ''
+        _assert_valid_channel_url()
     except AssertionError:
         raise ValueError("the URL supplied is not a valid youtube featured channels url.")
 
@@ -394,8 +401,8 @@ def main_function():
     if arguments.show_graph:
         colors = generate_colours(max_degree)
         networkx.draw_spring(youtube_user_graph,
-                            node_color=[colors[youtube_user_graph.node[node]['degree']]
-                                        for node in youtube_user_graph])
+                             node_color=[colors[youtube_user_graph.node[node]['degree']]
+                                         for node in youtube_user_graph])
         plt.show()
 
 if __name__ == '__main__':
