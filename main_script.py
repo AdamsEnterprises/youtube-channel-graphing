@@ -68,7 +68,8 @@ DEBUG = True
 
 # important constants, for web scraping
 URL_YOUTUBE_USER = u'https://www.youtube.com'
-SUBURL_YOUTUBE_CHANNELS = u'/channels?view=60'
+SUBURL_YOUTUBE_CHANNELS = u'/channels'
+SUBURL_CHANNEL_PARAMS = u'?view=60'
 RELATED_CHANNELS_TAG = 'li'
 RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
 RELATED_CHANNEL_SUBTAG = 'h3'
@@ -108,8 +109,9 @@ def setup_arg_parser():
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
-                        help="A file to record graphing data to. Must be a valid name for"
-                             + "the operating system. If omitted then no file is made.")
+                        help="""A file to record graphing data to. Must be a valid name, and not
+                             contain the following symbols: "'::,<>/?\\|{[}]%^&*
+                             If the option is omitted then no file is made.""")
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
                 choices=[1, 2, 3, 4],
                 help="""Display additional information to the console during processing.
@@ -120,7 +122,8 @@ def setup_arg_parser():
                      3 - New users, and relationships between users, found.
                      4 - Fully formatted logging with date and time. Useful for bug reports.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
-                help="Display a visual depiction of the graph in a separate window, when processing is complete.")
+                help="Display a visual depiction of the graph in a separate window, "
+                     + "when processing is complete.")
     return parser
 
 
@@ -135,7 +138,37 @@ def verify_arguments(parser, args):
         arguments = parser.parse_args()
     else:
         arguments = parser.parse_args(args)
-    # TODO: add implementation and parsing of arguments.
+
+    try:
+        # check if filename is valid
+        if arguments.filename is not None:
+            for symbol in "\"\\|/?,<>:;'{[}]*&^%":
+                assert( symbol not in arguments.filename)
+    except AssertionError:
+        raise ValueError("filename contains invalid symbols. Please see the help section for more"
+                         + " information.")
+
+    try:
+        # check for malformed urls
+        assert(arguments.url is not None)
+        assert(len(arguments.url) > 0)
+        try:
+            url, params = arguments.url.split('?')
+        except ValueError:
+            url = arguments.url
+            params = ''
+        # check correct youtube url for featured channels
+        assert( ( '/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS))
+        assert(url.rsplit('/', 2)[0] == str(URL_YOUTUBE_USER))
+        # don't check params - just replace them with the correct ones, which we already know
+        if ('?' + params) != SUBURL_CHANNEL_PARAMS:
+            arguments.url = url + SUBURL_CHANNEL_PARAMS
+        # quick check that this url actually works
+        name = extract_first_user_name(arguments.url)
+        if (len(name) == 0):
+            raise AssertionError
+    except AssertionError:
+        raise ValueError("the URL supplied is not a valid youtube featured channels url.")
 
     return arguments
 
@@ -163,7 +196,8 @@ def get_association_list(url):
             element = channel.find(RELATED_CHANNEL_SUBTAG)
             element_anchor = element.a
             user_name = element_anchor['title']
-            link = URL_YOUTUBE_USER + element_anchor['href'] + SUBURL_YOUTUBE_CHANNELS
+            link = URL_YOUTUBE_USER + element_anchor['href'] + \
+                   SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
         except (KeyError, AttributeError):
             GLOBAL_LOGGER.error('Could not parse HTML element on this page, ' +
                                 'may be malformed: ' + str(url))
