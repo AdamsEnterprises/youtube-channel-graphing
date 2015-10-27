@@ -4,8 +4,6 @@
 
 __author__ = 'Roland'
 
-# TODO TODO :: find out how to nosetest with arguments.
-
 import unittest
 
 import nose
@@ -75,7 +73,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_origin = u'https://www.youtube.com/channel/UCu2yrDg7wROzElRGoLQH82A/channels'
+        testing_origin = u'https://www.youtube.com/user/ChaoticMonki/channels'
         testing_targets = [
             (u'videooven',
              u'https://www.youtube.com/channel/UCR0_w50kjTiqQFE6J76l_mw/channels?view=60'),
@@ -151,17 +149,14 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(TypeError, main_script.generate_colours, None)
 
     def test_args_url(self):
-        self.skipTest("Test is not complete")
         parser = main_script.setup_arg_parser()
-        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG +
+                                      main_script.SUBURL_CHANNEL_PARAMS])
 
         test_name = 'LastWeekTonight'
-        # TODO: correct the colleague list
-        test_user_colleagues= ['muyskerm', 'LordMinion777', 'yamimash',
-             'LixianTV', 'GameGrumps', 'Egoraptor',
-             'Ninja Sex Party', 'RubberNinja', 'Cyndago', 'Matthias',
-             'TheRPGMinx', 'jacksepticeye',
-             'CinnamonToastKen', 'Cryaotic']
+        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
+             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+             'trueblood', 'HBOLatino']
 
         name = main_script.extract_first_user_name(response.url)
         self.assertEqual(name, test_name)
@@ -171,10 +166,79 @@ class YoutubeGraphTestCases(unittest.TestCase):
         associations.sort()
         test_user_colleagues.sort()
         self.assertEqual(len(associations), len(test_user_colleagues))
-        for i in range(len(associations)):
-            self.assertEqual(associations[i], test_user_colleagues[i])
+        for index in range(len(associations)):
+            self.assertEqual(str(associations[index][0]), test_user_colleagues[index])
 
+    def test_args_url_verified(self):
+        parser = main_script.setup_arg_parser()
+        test_name = 'LastWeekTonight'
+        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
+             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+             'trueblood', 'HBOLatino']
+        test_user_colleagues.sort()
 
+        # test with ?view=60 params appended
+        try:
+            arguments = main_script.verify_arguments(parser,
+                                [self.TESTING_DEFAULT_URL_ARG + main_script.SUBURL_CHANNEL_PARAMS])
+            extracted_name = main_script.extract_first_user_name(arguments.url)
+            self.assertEqual(test_name, extracted_name)
+            associates = main_script.get_association_list(arguments.url)
+            associates.sort()
+            for index in range(len(associates)):
+                self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        except ValueError:
+            self.fail()
+
+        # test with no params appended
+        arguments = main_script.verify_arguments(parser,
+                            [self.TESTING_DEFAULT_URL_ARG])
+        try:
+            index = arguments.url.index(main_script.SUBURL_CHANNEL_PARAMS)
+            substring_url = arguments.url[:index]
+            substring_appended_params = arguments.url[index:]
+            self.assertEqual(substring_url, self.TESTING_DEFAULT_URL_ARG)
+            self.assertEqual(substring_appended_params, main_script.SUBURL_CHANNEL_PARAMS)
+            extracted_name = main_script.extract_first_user_name(arguments.url)
+            self.assertEqual(test_name, extracted_name)
+            associates = main_script.get_association_list(arguments.url)
+            associates.sort()
+            for index in range(len(associates)):
+                self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        except (IndexError, ValueError):
+            # the correct params should be present.
+            self.fail()
+
+        # test with invalid params appended
+        arguments = main_script.verify_arguments(parser,
+                            [self.TESTING_DEFAULT_URL_ARG + '?vxsfdegfv=nmjk'])
+        try:
+            index = arguments.url.index(main_script.SUBURL_CHANNEL_PARAMS)
+            substring_url = arguments.url[:index]
+            substring_appended_params = arguments.url[index:]
+            self.assertEqual(substring_url, self.TESTING_DEFAULT_URL_ARG)
+            self.assertEqual(substring_appended_params, main_script.SUBURL_CHANNEL_PARAMS)
+            extracted_name = main_script.extract_first_user_name(arguments.url)
+            self.assertEqual(test_name, extracted_name)
+            associates = main_script.get_association_list(arguments.url)
+            associates.sort()
+            for index in range(len(associates)):
+                self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        except (IndexError, ValueError):
+            # the correct params should be present.
+            self.fail()
+
+        # test incorrect url with good params
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser,
+                            ['https://www.youtube.com/user/LastWeekTonight/videos?view=60']])
+
+        # test incorrect url
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser, ['https://www.youtube.com/user/LastWeekTonight/videos']])
+        # Test with None
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser, [None]])
 
     def test_args_help(self):
         self.skipTest("Test is not complete")
@@ -193,7 +257,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
                          " what was expected.")
 
     def test_args_degrees(self):
-        self.skipTest("Test is not complete")
         parser = main_script.setup_arg_parser()
 
         test_default_degree = 1
@@ -205,13 +268,12 @@ class YoutubeGraphTestCases(unittest.TestCase):
             response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
-        testing_degrees = ['0', '-1', 'a', '!']
-        for test_degree in testing_degrees:
-            self.assertRaises(Exception, parser.parse_args,
-                              *[self.TESTING_DEFAULT_URL_ARG, '-d', test_degree])
+        # testing_degrees = ['0', '-1', 'a', '!']
+        # for test_degree in testing_degrees:
+        #     self.assertRaises(Exception, parser.parse_args,
+        #                       *[self.TESTING_DEFAULT_URL_ARG, '-d', test_degree])
 
     def test_args_filename(self):
-        self.skipTest("Test is not complete")
         parser = main_script.setup_arg_parser()
 
         test_default_filename = None
@@ -223,8 +285,22 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                      '-f', test_filename])
         self.assertEqual(response.filename, test_filename)
 
+    def test_args_verify_filename(self):
+        parser = main_script.setup_arg_parser()
+        test_filename = ['graph.out', 'graph', '!graph$#']
+        test_bad_filename = ['%.out','^.out','&.out','*.out','{}.out','[].out',':,;.out',"'\".out",
+                             '<>.out','?/\\|.out',]
+
+        for good_name in test_filename:
+            arguments = main_script.verify_arguments(parser,
+                            [self.TESTING_DEFAULT_URL_ARG, '-f', good_name])
+            self.assertEqual(arguments.filename, good_name)
+
+        for bad_name in test_bad_filename:
+            self.assertRaises(ValueError, main_script.verify_arguments,
+                              *[parser, [self.TESTING_DEFAULT_URL_ARG, '-f', bad_name]])
+
     def test_args_verbose(self):
-        self.skipTest("Test is not complete")
         testing_verbosity = [1,2,3,4]
         parser = main_script.setup_arg_parser()
 
@@ -237,13 +313,12 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                          '-v', str(test_verbose)])
             self.assertEqual(response.verbose, test_verbose)
 
-        testing_verbosity = [0, -1, 5]
-        for test_verbose in testing_verbosity:
-            self.assertRaises(Exception, parser.parse_args,
-                              *[self.TESTING_DEFAULT_URL_ARG, '-v', test_verbose])
+        # testing_verbosity = [0, -1, 5]
+        # for test_verbose in testing_verbosity:
+        #     self.assertRaises(Exception, parser.parse_args,
+        #                       *[self.TESTING_DEFAULT_URL_ARG, '-v', test_verbose])
 
     def test_args_show_graph(self):
-        self.skipTest("Test is not complete.")
         parser = main_script.setup_arg_parser()
 
         response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG, '-s'])
@@ -255,11 +330,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
 
     # TODO: check file contents and assert they are as expected.
 
-    # TODO: check filename is valid for the underlying OS
-
-    # TODO: check verbosity output - collect from stdout and see if it matches expected format
-
-    # TODO: check for error being raised if url is not valid.
+    # TODO: check verbosity output - collect from stdout and see if it matches expected format.
 
     def test_graph_generation(self):
         """
