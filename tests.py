@@ -4,8 +4,6 @@
 
 __author__ = 'Roland'
 
-# TODO TODO :: find out how to nosetest with arguments.
-
 import unittest
 
 import nose
@@ -75,7 +73,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_origin = u'https://www.youtube.com/channel/UCu2yrDg7wROzElRGoLQH82A/channels'
+        testing_origin = u'https://www.youtube.com/user/ChaoticMonki/channels'
         testing_targets = [
             (u'videooven',
              u'https://www.youtube.com/channel/UCR0_w50kjTiqQFE6J76l_mw/channels?view=60'),
@@ -172,25 +170,27 @@ class YoutubeGraphTestCases(unittest.TestCase):
             self.assertEqual(str(associations[index][0]), test_user_colleagues[index])
 
     def test_args_url_verified(self):
-        self.skipTest("Test is incomplete.")
         parser = main_script.setup_arg_parser()
         test_name = 'LastWeekTonight'
         test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
-             'HBODocs', 'Real Time with Bill Maher', 'GameOfThrones',
+             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
              'trueblood', 'HBOLatino']
         test_user_colleagues.sort()
 
-        # if '?views-60' is already appended, don't append the params
-        arguments = main_script.verify_arguments(parser,
-                            [self.TESTING_DEFAULT_URL_ARG + main_script.SUBURL_CHANNEL_PARAMS])
-        extracted_name = main_script.extract_first_user_name(arguments.url)
-        self.assertEqual(test_name, extracted_name)
-        associates = main_script.get_association_list(arguments.url)
-        associates.sort()
-        for index in range(len(associates)):
-            self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        # test with ?view=60 params appended
+        try:
+            arguments = main_script.verify_arguments(parser,
+                                [self.TESTING_DEFAULT_URL_ARG + main_script.SUBURL_CHANNEL_PARAMS])
+            extracted_name = main_script.extract_first_user_name(arguments.url)
+            self.assertEqual(test_name, extracted_name)
+            associates = main_script.get_association_list(arguments.url)
+            associates.sort()
+            for index in range(len(associates)):
+                self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        except ValueError:
+            self.fail()
 
-        # otherwise append the params
+        # test with no params appended
         arguments = main_script.verify_arguments(parser,
                             [self.TESTING_DEFAULT_URL_ARG])
         try:
@@ -205,14 +205,40 @@ class YoutubeGraphTestCases(unittest.TestCase):
             associates.sort()
             for index in range(len(associates)):
                 self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
-        except IndexError:
-            # the params should have been appended to the parsed url.
+        except (IndexError, ValueError):
+            # the correct params should be present.
             self.fail()
 
-        # correct url with bad params
-        # incorrect url with good params
-        # incorrect url
-        # None
+        # test with invalid params appended
+        arguments = main_script.verify_arguments(parser,
+                            [self.TESTING_DEFAULT_URL_ARG + '?vxsfdegfv=nmjk'])
+        try:
+            index = arguments.url.index(main_script.SUBURL_CHANNEL_PARAMS)
+            substring_url = arguments.url[:index]
+            substring_appended_params = arguments.url[index:]
+            self.assertEqual(substring_url, self.TESTING_DEFAULT_URL_ARG)
+            self.assertEqual(substring_appended_params, main_script.SUBURL_CHANNEL_PARAMS)
+            extracted_name = main_script.extract_first_user_name(arguments.url)
+            self.assertEqual(test_name, extracted_name)
+            associates = main_script.get_association_list(arguments.url)
+            associates.sort()
+            for index in range(len(associates)):
+                self.assertEqual(str(associates[index][0]), test_user_colleagues[index])
+        except (IndexError, ValueError):
+            # the correct params should be present.
+            self.fail()
+
+        # test incorrect url with good params
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser,
+                            ['https://www.youtube.com/user/LastWeekTonight/videos?view=60']])
+
+        # test incorrect url
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser, ['https://www.youtube.com/user/LastWeekTonight/videos']])
+        # Test with None
+        self.assertRaises(ValueError, main_script.verify_arguments,
+                          *[parser, [None]])
 
     def test_args_help(self):
         self.skipTest("Test is not complete")
@@ -304,9 +330,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
 
     # TODO: check file contents and assert they are as expected.
 
-    # TODO: check verbosity output - collect from stdout and see if it matches expected format
-
-    # TODO: check for error being raised if url is not valid.
+    # TODO: check verbosity output - collect from stdout and see if it matches expected format.
 
     def test_graph_generation(self):
         """

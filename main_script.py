@@ -67,19 +67,17 @@ DEBUG = True
 
 
 # important constants, for web scraping
-URL_YOUTUBE_USER = u'https://www.youtube.com'
+URL_YOUTUBE_CHANNEL_ROOT = u'https://www.youtube.com'
+SUBURL_YOUTUBE_USER = u'/user'
 SUBURL_YOUTUBE_CHANNELS = u'/channels'
 SUBURL_CHANNEL_PARAMS = u'?view=60'
-RELATED_CHANNELS_TAG = 'li'
-RELATED_CHANNELS_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
+RELATED_CHANNEL_INDIVIDUAL_TAG = 'li'
+RELATED_CHANNEL_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
 RELATED_CHANNEL_SUBTAG = 'h3'
-RELATED_CHANNELS_SOURCE_TAG_ID = 'c4-primary-header-contents'
-RELATED_CHANNELS_SOURCE_SUBTAG = 'a'
-
-# defaults
-DEFAULT_FIRST_USER = [u'Cryaotic', URL_YOUTUBE_USER +
-                      u'/channel/UCu2yrDg7wROzElRGoLQH82A' + SUBURL_YOUTUBE_CHANNELS]
-DEFAULT_MAX_DEGREES_OF_SEPARATION = 1
+RELATED_CHANNELS_ANCHOR_ID = 'c4-primary-header-contents'
+RELATED_CHANNELS_ANCHOR_SOURCE = 'a'
+RELATED_CHANNELS_ROOT_TAG = 'ul'
+RELATED_CHANNELS_ROOT_ID_VALUE = 'browse-items-primary'
 
 # for debugging
 GLOBAL_LOGGER = logging.getLogger(__name__)
@@ -159,12 +157,16 @@ def verify_arguments(parser, args):
             params = ''
         # check correct youtube url for featured channels
         assert( ( '/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS))
-        assert(url.rsplit('/', 2)[0] == str(URL_YOUTUBE_USER))
+        temp = url.rsplit('/', 2)[0]
+        # expecting origin url in user format.
+        assert(temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER))
         # don't check params - just replace them with the correct ones, which we already know
         if ('?' + params) != SUBURL_CHANNEL_PARAMS:
             arguments.url = url + SUBURL_CHANNEL_PARAMS
-        # quick check that this url actually works
+        # fully check that this url actually works
         name = extract_first_user_name(arguments.url)
+        # should raise ValueError if cannot parse associates.
+        associates = get_association_list(arguments.url)
         if (len(name) == 0):
             raise AssertionError
     except AssertionError:
@@ -180,13 +182,20 @@ def get_association_list(url):
     :return: a list of (user name, associated channel url).
     """
 
-    strainer = bs4.SoupStrainer(RELATED_CHANNELS_TAG,
-                                attrs={'class': RELATED_CHANNELS_CLASS_ATTR_VALUE})
+    strainer = bs4.SoupStrainer(RELATED_CHANNELS_ROOT_TAG,
+                                attrs={'id': RELATED_CHANNELS_ROOT_ID_VALUE})
 
     # scrape the tags representing related channels
-    channels = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    channel_root = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+
+    if len(channel_root) == 0:
+        raise ValueError("""cannot parse or locate root element of related channels.
+                         Check the url is actually for a featured channels page. """)
 
     ret_list = list()
+
+    channels = channel_root.find_all(RELATED_CHANNEL_INDIVIDUAL_TAG,
+                                     attrs={'class':RELATED_CHANNEL_CLASS_ATTR_VALUE})
 
     for channel in channels:
         if not isinstance(channel, bs4.Tag):
@@ -196,7 +205,7 @@ def get_association_list(url):
             element = channel.find(RELATED_CHANNEL_SUBTAG)
             element_anchor = element.a
             user_name = element_anchor['title']
-            link = URL_YOUTUBE_USER + element_anchor['href'] + \
+            link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
                    SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
         except (KeyError, AttributeError):
             GLOBAL_LOGGER.error('Could not parse HTML element on this page, ' +
@@ -214,10 +223,10 @@ def extract_first_user_name(url):
     :param url: the url to retrieve source user name from.
     :return: string, the source user name.
     """
-    strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_SOURCE_TAG_ID})
+    strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_ANCHOR_ID})
     # scrape the tag with the user name
     name_tag = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
-    return name_tag.find(RELATED_CHANNELS_SOURCE_SUBTAG)['title']
+    return name_tag.find(RELATED_CHANNELS_ANCHOR_SOURCE)['title']
 
 
 def generate_colours(value):
