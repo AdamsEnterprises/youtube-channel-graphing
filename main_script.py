@@ -26,6 +26,8 @@ import matplotlib.pyplot as plt
 
 random.seed(-1)
 
+# TODO: switch from web scraping to Youtube API
+
 DEBUG = True
 
 # url      <url to featured channel list>
