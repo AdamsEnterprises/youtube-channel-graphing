@@ -107,9 +107,8 @@ def setup_arg_parser():
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
-                        help="""A file to record graphing data to. Must be a valid name, and not
-                             contain the following symbols: "'::,<>/?\\|{[}]%^&*
-                             If the option is omitted then no file is made.""")
+                        help="""A file to record graphing data to. Must be a valid name for the
+                        operating system. If the option is omitted then no file is made.""")
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
                 choices=[1, 2, 3, 4],
                 help="""Display additional information to the console during processing.

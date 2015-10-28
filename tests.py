@@ -241,22 +241,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(ValueError, main_script.verify_arguments,
                           *[parser, [None]])
 
-    def test_args_help(self):
-        self.skipTest("Test is not complete")
-
-        expected_response = """usage: pydevconsole.py [-h]
-
-                    Collect and/or show graphing data upon a Youtube user and their relationships
-                    to other users.
-
-                    optional arguments:
-                      -h, --help  show this help message and exit"""
-
-        parser = main_script.setup_arg_parser()
-        response = parser.parse_args(['-h'])
-        self.assertEqual(response, expected_response, "Error: received help text did not match" +
-                         " what was expected.")
-
     def test_args_degrees(self):
         parser = main_script.setup_arg_parser()
 
