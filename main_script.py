@@ -4,14 +4,14 @@ Main script for tge youtube graphing project.
 
 __author__ = 'Roland'
 
-import urllib as urlmanager
+import urllib as urlManager
 
 try:
     # pylint: disable=no-member
-    urlmanager.urlopen
+    urlManager.urlopen
 except AttributeError:
     #pylint: disable=no-member
-    from urllib import request as urlmanager
+    from urllib import request as urlManager
 
 import itertools
 import random
@@ -110,7 +110,7 @@ def setup_arg_parser():
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
-                choices=[1, 2, 3, 4],
+                        choices=[1, 2, 3, 4],
                 help="""Display additional information to the console during processing.
                      The default (if ommitted) is to not display any information.
                      Possible choices are:
@@ -119,8 +119,8 @@ def setup_arg_parser():
                      3 - New users, and relationships between users, found.
                      4 - Fully formatted logging with date and time. Useful for bug reports.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
-                help="Display a visual depiction of the graph in a separate window, "
-                     + "when processing is complete.")
+                        help="Display a visual depiction of the graph in a separate window, "
+                        + "when processing is complete.")
     return parser
 
 
@@ -192,7 +192,7 @@ def get_association_list(url):
                                 attrs={'id': RELATED_CHANNELS_ROOT_ID_VALUE})
 
     # scrape the tags representing related channels
-    channel_root = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    channel_root = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
 
     if len(channel_root) == 0:
         raise ValueError("""cannot parse or locate root element of related channels.
@@ -201,7 +201,7 @@ def get_association_list(url):
     ret_list = list()
 
     channels = channel_root.find_all(RELATED_CHANNEL_INDIVIDUAL_TAG,
-                                     attrs={'class':RELATED_CHANNEL_CLASS_ATTR_VALUE})
+                                     attrs={'class': RELATED_CHANNEL_CLASS_ATTR_VALUE})
 
     for channel in channels:
         if not isinstance(channel, bs4.Tag):
@@ -212,7 +212,7 @@ def get_association_list(url):
             element_anchor = element.a
             user_name = element_anchor['title']
             link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
-                   SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
+                SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
         except (KeyError, AttributeError):
             GLOBAL_LOGGER.error('Could not parse HTML element on this page, ' +
                                 'may be malformed: ' + str(url))
@@ -231,7 +231,7 @@ def extract_first_user_name(url):
     """
     strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_ANCHOR_ID})
     # scrape the tag with the user name
-    name_tag = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    name_tag = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
     return name_tag.find(RELATED_CHANNELS_ANCHOR_SOURCE)['title']
 
 
@@ -247,12 +247,12 @@ def generate_colours(value):
         # create a list of all colour code permutations, depending on a given range of values.
         :return: list of colour codes
         """
-        code_list = list()
+        permutation_list = list()
         for i in itertools.product(value_range, value_range, value_range):
             # convert from (R, G, B)decimal to '#RRGGBB'hex
             code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-            code_list.append(code)
-        return code_list
+            permutation_list.append(code)
+        return permutation_list
 
     if not isinstance(value, int):
         raise TypeError("Parameter must be Integer.")
@@ -307,7 +307,6 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
         processed.
         :param origin:          user this colleague relates to
         :param current_user:    the colleague
-        :param max_degree:  degree of separation between first ever user and this user
         :param user_graph:      the graph to add nodes and edges to.
         :return:
         """
@@ -419,15 +418,8 @@ def main_function():
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
     if arguments.filename is not None:
-        node_list = list()
-        edge_list = list()
-        for node in youtube_user_graph.nodes():
-            node_list.append(node)
-        with open(arguments.filename, 'w') as f:
-            for node in youtube_user_graph.nodes():
-                f.write(str(node) + '\n')
-            for edge in youtube_user_graph.edges():
-                f.write('\t' + str(edge) + '\n')
+        text = convert_graph_to_text(youtube_user_graph)
+        generate_file(arguments.filename, text)
 
     if arguments.show_graph:
         colors = generate_colours(max_degree)

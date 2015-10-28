@@ -155,9 +155,9 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                       main_script.SUBURL_CHANNEL_PARAMS])
 
         test_name = 'LastWeekTonight'
-        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
-             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
-             'trueblood', 'HBOLatino']
+        test_user_colleagues = ['HBO', 'Cinemax', 'HBOBoxing',
+                                'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+                                'trueblood', 'HBOLatino']
 
         name = main_script.extract_first_user_name(response.url)
         self.assertEqual(name, test_name)
@@ -173,9 +173,9 @@ class YoutubeGraphTestCases(unittest.TestCase):
     def test_args_url_verified(self):
         parser = main_script.setup_arg_parser()
         test_name = 'LastWeekTonight'
-        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
-             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
-             'trueblood', 'HBOLatino']
+        test_user_colleagues = ['HBO', 'Cinemax', 'HBOBoxing',
+                                'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+                                'trueblood', 'HBOLatino']
         test_user_colleagues.sort()
 
         # test with ?view=60 params appended
@@ -273,8 +273,8 @@ class YoutubeGraphTestCases(unittest.TestCase):
     def test_args_verify_filename(self):
         parser = main_script.setup_arg_parser()
         test_filename = ['graph.out', 'graph', '!graph$#']
-        test_bad_filename = ['%.out','^.out','&.out','*.out','{}.out','[].out',':,;.out',"'\".out",
-                             '<>.out','?/\\|.out',]
+        test_bad_filename = ['%.out', '^.out', '&.out', '*.out', '{}.out', '[].out',
+                             ':,;.out', "'\".out", '<>.out', '?/\\|.out']
 
         for good_name in test_filename:
             arguments = main_script.verify_arguments(parser,
@@ -359,15 +359,15 @@ class YoutubeGraphTestCases(unittest.TestCase):
             for index in range(len(file_lines)):
                 try:
                     self.assertTrue(file_lines[index] in expected_lines)
-                except:
+                except AssertionError:
                     alt_line = file_lines[index].split(', ')
                     alt_line = alt_line[1] + ', ' + alt_line[0]
                     self.assertTrue(alt_line in expected_lines)
 
         test_text = "LastWeekTonight, HBO\nLastWeekTonight, Cinemax\n" + \
-                      "LastWeekTonight, HBOBoxing\nLastWeekTonight, HBODocs\n" + \
-                      "LastWeekTonight, Real Time with Bill Maher\nLastWeekTonight, GameofThrones\n" + \
-                      "LastWeekTonight, trueblood\nLastWeekTonight, HBOLatino\n"
+                    "LastWeekTonight, HBOBoxing\nLastWeekTonight, HBODocs\n" + \
+                    "LastWeekTonight, Real Time with Bill Maher\nLastWeekTonight, GameofThrones\n" + \
+                    "LastWeekTonight, trueblood\nLastWeekTonight, HBOLatino\n"
 
         filename = 'graph.out'
 
