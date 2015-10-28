@@ -308,7 +308,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
         processed.
         :param origin:          user this colleague relates to
         :param current_user:    the colleague
-        :param current_degree:  degree of separation between first ever user and this user
+        :param max_degree:  degree of separation between first ever user and this user
         :param user_graph:      the graph to add nodes and edges to.
         :return:
         """
@@ -375,6 +375,31 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     return graph_nodes
 
 
+def convert_graph_to_text(graph):
+    """
+    given a graph object, render to text the edges in the graph
+    this is the minimum data required to reconstruct the graph.
+    :param graph: the graph object to get edges from
+    :return: a list of edges
+    """
+    text = ""
+    for edge in graph.edges():
+        string = str(edge).split("'")[1:-1]
+        text += string[0] + ', ' + string[2] + '\n'
+    return text
+
+
+# def convert_graph_to_text(graph):
+
+
+# def convert_graph_to_text(graph):
+
+
+def generate_file(filename, text):
+    with open(filename, 'w') as f:
+        f.write(text)
+
+
 def main_function():
     """
     the runner function of the main_script
@@ -395,8 +420,15 @@ def main_function():
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
     if arguments.filename is not None:
-        pass
-        # TODO record graph data to file.
+        node_list = list()
+        edge_list = list()
+        for node in youtube_user_graph.nodes():
+            node_list.append(node)
+        with open(arguments.filename, 'w') as f:
+            for node in youtube_user_graph.nodes():
+                f.write(str(node) + '\n')
+            for edge in youtube_user_graph.edges():
+                f.write('\t' + str(edge) + '\n')
 
     if arguments.show_graph:
         colors = generate_colours(max_degree)
