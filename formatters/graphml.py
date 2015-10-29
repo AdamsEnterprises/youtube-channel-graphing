@@ -1,6 +1,7 @@
 """
 A wrapper module for parsing between graph structures and GraphML format.
 """
+from __future__ import absolute_import, print_function, nested_scopes, generators, with_statement
 
 import xml.etree.cElementTree as ET
 from xml.dom import minidom
@@ -152,7 +153,7 @@ def build_xml_string(xml_tree):
     """
     root = xml_tree.getroot()
     xml_string = ET.tostring(root, 'utf-8')
-    xml_string = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml_string
+    xml_string = '<?xml version="1.0" ?>\n' + xml_string.decode('utf-8')
     reparsed_string = minidom.parseString(xml_string)
     return reparsed_string.toprettyxml(indent="\t")
 

@@ -1,8 +1,11 @@
 """
 Main script for tge youtube graphing project.
 """
+from __future__ import absolute_import, print_function, nested_scopes, generators, with_statement
 
 __author__ = 'Roland'
+
+
 
 import urllib as urlManager
 
