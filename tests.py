@@ -5,6 +5,7 @@
 __author__ = 'Roland'
 
 import unittest
+import os
 
 import nose
 import networkx
@@ -154,9 +155,9 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                       main_script.SUBURL_CHANNEL_PARAMS])
 
         test_name = 'LastWeekTonight'
-        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
-             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
-             'trueblood', 'HBOLatino']
+        test_user_colleagues = ['HBO', 'Cinemax', 'HBOBoxing',
+                                'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+                                'trueblood', 'HBOLatino']
 
         name = main_script.extract_first_user_name(response.url)
         self.assertEqual(name, test_name)
@@ -172,9 +173,9 @@ class YoutubeGraphTestCases(unittest.TestCase):
     def test_args_url_verified(self):
         parser = main_script.setup_arg_parser()
         test_name = 'LastWeekTonight'
-        test_user_colleagues= ['HBO', 'Cinemax', 'HBOBoxing',
-             'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
-             'trueblood', 'HBOLatino']
+        test_user_colleagues = ['HBO', 'Cinemax', 'HBOBoxing',
+                                'HBODocs', 'Real Time with Bill Maher', 'GameofThrones',
+                                'trueblood', 'HBOLatino']
         test_user_colleagues.sort()
 
         # test with ?view=60 params appended
@@ -240,22 +241,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         self.assertRaises(ValueError, main_script.verify_arguments,
                           *[parser, [None]])
 
-    def test_args_help(self):
-        self.skipTest("Test is not complete")
-
-        expected_response = """usage: pydevconsole.py [-h]
-
-                    Collect and/or show graphing data upon a Youtube user and their relationships
-                    to other users.
-
-                    optional arguments:
-                      -h, --help  show this help message and exit"""
-
-        parser = main_script.setup_arg_parser()
-        response = parser.parse_args(['-h'])
-        self.assertEqual(response, expected_response, "Error: received help text did not match" +
-                         " what was expected.")
-
     def test_args_degrees(self):
         parser = main_script.setup_arg_parser()
 
@@ -288,8 +273,8 @@ class YoutubeGraphTestCases(unittest.TestCase):
     def test_args_verify_filename(self):
         parser = main_script.setup_arg_parser()
         test_filename = ['graph.out', 'graph', '!graph$#']
-        test_bad_filename = ['%.out','^.out','&.out','*.out','{}.out','[].out',':,;.out',"'\".out",
-                             '<>.out','?/\\|.out',]
+        test_bad_filename = ['%.out', '^.out', '&.out', '*.out', '{}.out', '[].out',
+                             ':,;.out', "'\".out", '<>.out', '?/\\|.out']
 
         for good_name in test_filename:
             arguments = main_script.verify_arguments(parser,
@@ -327,8 +312,128 @@ class YoutubeGraphTestCases(unittest.TestCase):
         response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
         self.assertFalse(response.show_graph)
 
+    def test_graph_conversion_to_text(self):
 
-    # TODO: check file contents and assert they are as expected.
+        test_output = "LastWeekTonight, HBO\nLastWeekTonight, Cinemax\n" + \
+                      "LastWeekTonight, HBOBoxing\nLastWeekTonight, HBODocs\n" + \
+                      "LastWeekTonight, Real Time with Bill Maher\nLastWeekTonight, GameofThrones\n" + \
+                      "LastWeekTonight, trueblood\nLastWeekTonight, HBOLatino\n"
+
+        graph = networkx.Graph()
+        graph.clear()
+
+        # produce a mock graph.
+        for pair in test_output.split('\n'):
+            try:
+                source, dest = pair.split(',')
+                graph.add_edge(source.strip(), dest.strip())
+            except ValueError:
+                continue
+
+        text = main_script.convert_graph_to_text(graph)
+        # check the output, and number of lines, matches
+        self.assertEqual(len(text), len(test_output))
+        test_output = test_output.split('\n')
+        text = text.split('\n')
+        self.assertEqual(len(text), len(test_output))
+        # check for correct nodes and edges in text.
+        # may have different order of lines or
+        for line in text:
+            if len(line) == 0:
+                alt_line = ""
+            else:
+                alt_line = line.split(',')
+                alt_line = alt_line[1].strip() + ', ' + alt_line[0].strip()
+            self.assertTrue(line in test_output or alt_line in test_output)
+
+    def test_graph_conversion_to_graphml(self):
+
+        # TODO: build an Element Tree with what is expected. parse the resultant xml into a tree and compare
+
+        test_output = [u'<?xml version="1.0" ?>',
+                       u'<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns',
+                       u'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
+                       u'\t<graph edgedefault="undirected" id="formatters.graphml">',
+                       u'\t\t<node id="n0"/>',
+                       u'\t\t<node id="n1"/>',
+                       u'\t\t<node id="n2"/>',
+                       u'\t\t<edge source="n0" target="n1"/>',
+                       u'\t\t<edge source="n1" target="n2"/>',
+                       u'\t</graph>',
+                       u'</graphml>',
+                       u'']
+
+        graph = networkx.Graph()
+        graph.clear()
+        graph.add_node("n0")
+        graph.add_node("n1")
+        graph.add_node("n2")
+        graph.add_edge("n0","n1")
+        graph.add_edge("n1","n2")
+
+        xml_string = main_script.convert_graph_to_xml(graph)
+        xml_data = xml_string.split('\n')
+
+        print test_output
+        print ('\n\n')
+        print xml_data
+        print ('\n\n')
+
+        self.assertEqual(len(xml_data), len(test_output))
+        for index in range(len(test_output)):
+            self.assertEqual(xml_data[index], test_output[index])
+
+    def test_graph_conversion_to_json(self):
+        self.skipTest("test not complete")
+
+    def test_file_creation(self):
+
+        def _compare_from_file(filename, expected_text):
+            with open(filename) as f:
+                file_lines = f.read().split('\n')
+                file_lines.sort()
+            expected_lines = expected_text.split('\n')
+            for index in range(len(file_lines)):
+                try:
+                    self.assertTrue(file_lines[index] in expected_lines)
+                except AssertionError:
+                    alt_line = file_lines[index].split(', ')
+                    alt_line = alt_line[1] + ', ' + alt_line[0]
+                    self.assertTrue(alt_line in expected_lines)
+
+        test_text = "LastWeekTonight, HBO\nLastWeekTonight, Cinemax\n" + \
+                    "LastWeekTonight, HBOBoxing\nLastWeekTonight, HBODocs\n" + \
+                    "LastWeekTonight, Real Time with Bill Maher\nLastWeekTonight, GameofThrones\n" + \
+                    "LastWeekTonight, trueblood\nLastWeekTonight, HBOLatino\n"
+
+        filename = 'graph.out'
+
+        graph = networkx.Graph()
+        graph.clear()
+        for pair in test_text.split('\n'):
+            try:
+                source, dest = pair.split(',')
+                graph.add_edge(source.strip(), dest.strip())
+            except ValueError:
+                continue
+
+        main_script.generate_file(filename, main_script.convert_graph_to_text(graph))
+
+        self.assertTrue(os.path.exists(filename))
+        # check the written file contents are as expected.
+        _compare_from_file(filename, test_text)
+        os.remove(filename)
+
+        # main_script.generate_file(filename, main_script.convert_graph_to_xml(graph))
+        # self.assertTrue(os.path.exists(filename))
+        # # check the written file contents are as expected.
+        # _compare_from_file(filename, test_xml)
+
+        # main_script.generate_file(filename, main_script.convert_graph_to_json(graph))
+        # self.assertTrue(os.path.exists(filename))
+        # # check the written file contents are as expected.
+        # _compare_from_file(filename, test_json)
+
 
     # TODO: check verbosity output - collect from stdout and see if it matches expected format.
 
@@ -418,20 +523,19 @@ class YoutubeGraphTestCases(unittest.TestCase):
              'PewDiePie', 'CinnamonToastKen', 'LordMinion777')
         )
 
-        main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION = 2
-        main_script.DEFAULT_FIRST_USER = (u'Markiplier',
-                                          u'https://www.youtube.com/user/markiplierGAME/channels')
+        degrees = 2
+        origin = (u'Markiplier', u'https://www.youtube.com/user/markiplierGAME/channels')
 
         # final preparation
         graph_nodes = networkx.Graph()
-        graph_nodes.add_node(main_script.DEFAULT_FIRST_USER[0],
-                             degree=main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION)
+        graph_nodes.add_node(origin[0],
+                             degree=0)
 
         # the function to test
         main_script.DEBUG = False
         main_script.generate_relationship_graph(graph_nodes,
-                                                main_script.DEFAULT_MAX_DEGREES_OF_SEPARATION,
-                                                main_script.DEFAULT_FIRST_USER, 0)
+                                                degrees,
+                                                origin, 0)
         main_script.DEBUG = True
 
         # comparisons
@@ -464,10 +568,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         import subprocess
 
         try:
-            # import main_script
-            # main_script.DEBUG = False
-            # main_script.main_function()
-            # main_script.DEBUG = True
             status = subprocess.call(['python', 'main_script.py', DEFAULT_FIRST_USER])
             self.assertEqual(status, 0)
         except Exception:

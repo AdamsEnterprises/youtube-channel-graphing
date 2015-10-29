@@ -4,14 +4,14 @@ Main script for tge youtube graphing project.
 
 __author__ = 'Roland'
 
-import urllib as urlmanager
+import urllib as urlManager
 
 try:
     # pylint: disable=no-member
-    urlmanager.urlopen
+    urlManager.urlopen
 except AttributeError:
     #pylint: disable=no-member
-    from urllib import request as urlmanager
+    from urllib import request as urlManager
 
 import itertools
 import random
@@ -24,7 +24,11 @@ import networkx
 import bs4
 import matplotlib.pyplot as plt
 
+import formatters
+
 random.seed(-1)
+
+# TODO: switch from web scraping to Youtube API
 
 DEBUG = True
 
@@ -107,11 +111,10 @@ def setup_arg_parser():
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
-                        help="""A file to record graphing data to. Must be a valid name, and not
-                             contain the following symbols: "'::,<>/?\\|{[}]%^&*
-                             If the option is omitted then no file is made.""")
+                        help="""A file to record graphing data to. Must be a valid name for the
+                        operating system. If the option is omitted then no file is made.""")
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
-                choices=[1, 2, 3, 4],
+                        choices=[1, 2, 3, 4],
                 help="""Display additional information to the console during processing.
                      The default (if ommitted) is to not display any information.
                      Possible choices are:
@@ -120,8 +123,8 @@ def setup_arg_parser():
                      3 - New users, and relationships between users, found.
                      4 - Fully formatted logging with date and time. Useful for bug reports.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
-                help="Display a visual depiction of the graph in a separate window, "
-                     + "when processing is complete.")
+                        help="Display a visual depiction of the graph in a separate window, "
+                        + "when processing is complete.")
     return parser
 
 
@@ -132,43 +135,50 @@ def verify_arguments(parser, args):
     :param args:    list of arguments to process
     :return:        the parsed Arguments object.
     """
-    if args is None:
-        arguments = parser.parse_args()
-    else:
-        arguments = parser.parse_args(args)
 
-    try:
-        # check if filename is valid
-        if arguments.filename is not None:
-            for symbol in "\"\\|/?,<>:;'{[}]*&^%":
-                assert( symbol not in arguments.filename)
-    except AssertionError:
-        raise ValueError("filename contains invalid symbols. Please see the help section for more"
-                         + " information.")
-
-    try:
-        # check for malformed urls
-        assert(arguments.url is not None)
-        assert(len(arguments.url) > 0)
+    def _assert_valid_filename():
         try:
-            url, params = arguments.url.split('?')
-        except ValueError:
-            url = arguments.url
-            params = ''
+            # check if filename is valid
+            if arguments.filename is not None:
+                for symbol in "\"\\|/?,<>:;'{[}]*&^%":
+                    assert symbol not in arguments.filename
+        except AssertionError:
+            raise ValueError("""filename contains invalid symbols. Please
+                             see the help section for more information.""")
+
+    def _assert_valid_channel_url():
         # check correct youtube url for featured channels
-        assert( ( '/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS))
+        assert ('/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS)
         temp = url.rsplit('/', 2)[0]
         # expecting origin url in user format.
-        assert(temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER))
+        assert temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER)
         # don't check params - just replace them with the correct ones, which we already know
         if ('?' + params) != SUBURL_CHANNEL_PARAMS:
             arguments.url = url + SUBURL_CHANNEL_PARAMS
         # fully check that this url actually works
         name = extract_first_user_name(arguments.url)
         # should raise ValueError if cannot parse associates.
-        associates = get_association_list(arguments.url)
-        if (len(name) == 0):
+        get_association_list(arguments.url)
+        if len(name) == 0:
             raise AssertionError
+
+    if args is None:
+        arguments = parser.parse_args()
+    else:
+        arguments = parser.parse_args(args)
+
+    _assert_valid_filename()
+
+    try:
+        # check for malformed urls
+        assert arguments.url is not None
+        assert len(arguments.url) > 0
+        try:
+            url, params = arguments.url.split('?')
+        except ValueError:
+            url = arguments.url
+            params = ''
+        _assert_valid_channel_url()
     except AssertionError:
         raise ValueError("the URL supplied is not a valid youtube featured channels url.")
 
@@ -186,7 +196,7 @@ def get_association_list(url):
                                 attrs={'id': RELATED_CHANNELS_ROOT_ID_VALUE})
 
     # scrape the tags representing related channels
-    channel_root = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    channel_root = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
 
     if len(channel_root) == 0:
         raise ValueError("""cannot parse or locate root element of related channels.
@@ -195,7 +205,7 @@ def get_association_list(url):
     ret_list = list()
 
     channels = channel_root.find_all(RELATED_CHANNEL_INDIVIDUAL_TAG,
-                                     attrs={'class':RELATED_CHANNEL_CLASS_ATTR_VALUE})
+                                     attrs={'class': RELATED_CHANNEL_CLASS_ATTR_VALUE})
 
     for channel in channels:
         if not isinstance(channel, bs4.Tag):
@@ -206,7 +216,7 @@ def get_association_list(url):
             element_anchor = element.a
             user_name = element_anchor['title']
             link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
-                   SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
+                SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
         except (KeyError, AttributeError):
             GLOBAL_LOGGER.error('Could not parse HTML element on this page, ' +
                                 'may be malformed: ' + str(url))
@@ -225,7 +235,7 @@ def extract_first_user_name(url):
     """
     strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_ANCHOR_ID})
     # scrape the tag with the user name
-    name_tag = bs4.BeautifulSoup(urlmanager.urlopen(url), 'html.parser', parse_only=strainer)
+    name_tag = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
     return name_tag.find(RELATED_CHANNELS_ANCHOR_SOURCE)['title']
 
 
@@ -241,12 +251,12 @@ def generate_colours(value):
         # create a list of all colour code permutations, depending on a given range of values.
         :return: list of colour codes
         """
-        code_list = list()
+        permutation_list = list()
         for i in itertools.product(value_range, value_range, value_range):
             # convert from (R, G, B)decimal to '#RRGGBB'hex
             code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-            code_list.append(code)
-        return code_list
+            permutation_list.append(code)
+        return permutation_list
 
     if not isinstance(value, int):
         raise TypeError("Parameter must be Integer.")
@@ -301,7 +311,6 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
         processed.
         :param origin:          user this colleague relates to
         :param current_user:    the colleague
-        :param current_degree:  degree of separation between first ever user and this user
         :param user_graph:      the graph to add nodes and edges to.
         :return:
         """
@@ -368,6 +377,42 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     return graph_nodes
 
 
+def convert_graph_to_text(graph):
+    """
+    given a graph object, render to text the edges in the graph
+    this is the minimum data required to reconstruct the graph.
+    :param graph: the graph object to get edges from
+    :return: a list of edges
+    """
+    text = ""
+    for edge in graph.edges():
+        string = str(edge).split("'")[1:-1]
+        text += string[0] + ', ' + string[2] + '\n'
+    return text
+
+
+def convert_graph_to_xml(graph):
+    """
+    convert from a networkX graph object, to a graphml formatted xml string.
+    :param graph: the networkX graph object
+    :return: the xml describing the graph, in graphml format.
+    """
+    tree = formatters.graphml.make_base_xml()
+    for node in graph.nodes():
+        formatters.graphml.make_node(tree, node, **graph.node[node])
+    for edge in graph.edges():
+        formatters.graphml.make_edge(tree, edge[0], edge[1], **graph.edge[edge[0]][edge[1]])
+    return formatters.graphml.build_xml_string(tree)
+
+
+# def convert_graph_to_text(graph):
+
+
+def generate_file(filename, text):
+    with open(filename, 'w') as f:
+        f.write(text)
+
+
 def main_function():
     """
     the runner function of the main_script
@@ -388,14 +433,14 @@ def main_function():
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
     if arguments.filename is not None:
-        pass
-        # TODO record graph data to file.
+        text = convert_graph_to_text(youtube_user_graph)
+        generate_file(arguments.filename, text)
 
     if arguments.show_graph:
         colors = generate_colours(max_degree)
         networkx.draw_spring(youtube_user_graph,
-                            node_color=[colors[youtube_user_graph.node[node]['degree']]
-                                        for node in youtube_user_graph])
+                             node_color=[colors[youtube_user_graph.node[node]['degree']]
+                                         for node in youtube_user_graph])
         plt.show()
 
 if __name__ == '__main__':
