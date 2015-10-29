@@ -319,13 +319,16 @@ class YoutubeGraphTestCases(unittest.TestCase):
                       "LastWeekTonight, Real Time with Bill Maher\nLastWeekTonight, GameofThrones\n" + \
                       "LastWeekTonight, trueblood\nLastWeekTonight, HBOLatino\n"
 
-        arguments = main_script.verify_arguments(main_script.setup_arg_parser(),
-                                                 [self.TESTING_DEFAULT_URL_ARG])
-        origin = (main_script.extract_first_user_name(arguments.url), arguments.url)
         graph = networkx.Graph()
         graph.clear()
-        graph.add_node(origin[0], degree=0)
-        main_script.generate_relationship_graph(graph, arguments.degree, origin, 0)
+
+        # produce a mock graph.
+        for pair in test_output.split('\n'):
+            try:
+                source, dest = pair.split(',')
+                graph.add_edge(source.strip(), dest.strip())
+            except ValueError:
+                continue
 
         text = main_script.convert_graph_to_text(graph)
         # check the output, and number of lines, matches
@@ -371,18 +374,21 @@ class YoutubeGraphTestCases(unittest.TestCase):
 
         filename = 'graph.out'
 
-        arguments = main_script.verify_arguments(main_script.setup_arg_parser(),
-                                                 [self.TESTING_DEFAULT_URL_ARG])
-        origin = (main_script.extract_first_user_name(arguments.url), arguments.url)
         graph = networkx.Graph()
         graph.clear()
-        graph.add_node(origin[0], degree=0)
-        main_script.generate_relationship_graph(graph, arguments.degree, origin, 0)
+        for pair in test_text.split('\n'):
+            try:
+                source, dest = pair.split(',')
+                graph.add_edge(source.strip(), dest.strip())
+            except ValueError:
+                continue
 
         main_script.generate_file(filename, main_script.convert_graph_to_text(graph))
+
         self.assertTrue(os.path.exists(filename))
         # check the written file contents are as expected.
         _compare_from_file(filename, test_text)
+        os.remove(filename)
 
         # main_script.generate_file(filename, main_script.convert_graph_to_xml(graph))
         # self.assertTrue(os.path.exists(filename))
