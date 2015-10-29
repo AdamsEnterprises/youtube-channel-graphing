@@ -24,6 +24,8 @@ import networkx
 import bs4
 import matplotlib.pyplot as plt
 
+import formatters
+
 random.seed(-1)
 
 # TODO: switch from web scraping to Youtube API
@@ -389,7 +391,8 @@ def convert_graph_to_text(graph):
     return text
 
 
-# def convert_graph_to_text(graph):
+def convert_graph_to_xml(graph):
+    root, doc = formatters.graphml.make_base_xml()
 
 
 # def convert_graph_to_text(graph):
