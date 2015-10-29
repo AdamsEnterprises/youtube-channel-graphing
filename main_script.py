@@ -24,7 +24,7 @@ import networkx
 import bs4
 import matplotlib.pyplot as plt
 
-import formatters
+from formatters import graphml
 
 random.seed(-1)
 
@@ -397,12 +397,12 @@ def convert_graph_to_xml(graph):
     :param graph: the networkX graph object
     :return: the xml describing the graph, in graphml format.
     """
-    tree = formatters.graphml.make_base_xml()
+    tree = graphml.make_base_xml()
     for node in graph.nodes():
-        formatters.graphml.make_node(tree, node, **graph.node[node])
+        graphml.make_node(tree, node, **graph.node[node])
     for edge in graph.edges():
-        formatters.graphml.make_edge(tree, edge[0], edge[1], **graph.edge[edge[0]][edge[1]])
-    return formatters.graphml.build_xml_string(tree)
+        graphml.make_edge(tree, edge[0], edge[1], **graph.edge[edge[0]][edge[1]])
+    return graphml.build_xml_string(tree)
 
 
 # def convert_graph_to_text(graph):
