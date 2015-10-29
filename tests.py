@@ -347,21 +347,21 @@ class YoutubeGraphTestCases(unittest.TestCase):
             self.assertTrue(line in test_output or alt_line in test_output)
 
     def test_graph_conversion_to_graphml(self):
-        self.skipTest("Test not complete")
 
-        test_output = '<?xml version="1.0" encoding="UTF-8"?>\n' + \
-        '<graphml xmlns="http://graphml.graphdrawing.org/xmlns\n' + \
-        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance\n' + \
-        'xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns\n' + \
-        'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">\n' + \
-        '\t<graph id="GraphML" edgedefault="undirected">\n' + \
-        '\t\t<node id="n0"/>\n' + \
-        '\t\t<node id="n1"/>\n' + \
-        '\t\t<node id="n2"/>\n' + \
-        '\t\t<edge source="n0" target="n1"/>\n' + \
-        '\t\t<edge source="n1" target="n2"/>\n' + \
-        '\t</graph>\n' + \
-        '</graphml>'
+        # TODO: build an Element Tree with what is expected. parse the resultant xml into a tree and compare
+
+        test_output = [u'<?xml version="1.0" ?>',
+                       u'<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns',
+                       u'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
+                       u'\t<graph edgedefault="undirected" id="formatters.graphml">',
+                       u'\t\t<node id="n0"/>',
+                       u'\t\t<node id="n1"/>',
+                       u'\t\t<node id="n2"/>',
+                       u'\t\t<edge source="n0" target="n1"/>',
+                       u'\t\t<edge source="n1" target="n2"/>',
+                       u'\t</graph>',
+                       u'</graphml>',
+                       u'']
 
         graph = networkx.Graph()
         graph.clear()
@@ -372,11 +372,16 @@ class YoutubeGraphTestCases(unittest.TestCase):
         graph.add_edge("n1","n2")
 
         xml_string = main_script.convert_graph_to_xml(graph)
+        xml_data = xml_string.split('\n')
 
-        self.assertEqual(len(xml_string), len(test_output))
+        print test_output
+        print ('\n\n')
+        print xml_data
+        print ('\n\n')
+
+        self.assertEqual(len(xml_data), len(test_output))
         for index in range(len(test_output)):
-            self.assertEqual(xml_string[index], test_output[index])
-
+            self.assertEqual(xml_data[index], test_output[index])
 
     def test_graph_conversion_to_json(self):
         self.skipTest("test not complete")
