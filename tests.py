@@ -346,8 +346,37 @@ class YoutubeGraphTestCases(unittest.TestCase):
                 alt_line = alt_line[1].strip() + ', ' + alt_line[0].strip()
             self.assertTrue(line in test_output or alt_line in test_output)
 
-    def test_graph_conversion_to_xml(self):
+    def test_graph_conversion_to_graphml(self):
         self.skipTest("Test not complete")
+
+        test_output = '<?xml version="1.0" encoding="UTF-8"?>\n' + \
+        '<graphml xmlns="http://graphml.graphdrawing.org/xmlns\n' + \
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance\n' + \
+        'xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns\n' + \
+        'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">\n' + \
+        '\t<graph id="GraphML" edgedefault="undirected">\n' + \
+        '\t\t<node id="n0"/>\n' + \
+        '\t\t<node id="n1"/>\n' + \
+        '\t\t<node id="n2"/>\n' + \
+        '\t\t<edge source="n0" target="n1"/>\n' + \
+        '\t\t<edge source="n1" target="n2"/>\n' + \
+        '\t</graph>\n' + \
+        '</graphml>'
+
+        graph = networkx.Graph()
+        graph.clear()
+        graph.add_node("n0")
+        graph.add_node("n1")
+        graph.add_node("n2")
+        graph.add_edge("n0","n1")
+        graph.add_edge("n1","n2")
+
+        xml_string = main_script.convert_graph_to_xml(graph)
+
+        self.assertEqual(len(xml_string), len(test_output))
+        for index in range(len(test_output)):
+            self.assertEqual(xml_string[index], test_output[index])
+
 
     def test_graph_conversion_to_json(self):
         self.skipTest("test not complete")
