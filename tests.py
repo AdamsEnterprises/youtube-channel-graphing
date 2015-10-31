@@ -354,7 +354,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         test_output = [u'<?xml version="1.0" ?>',
                        u'<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns',
                        u'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
-                       u'\t<graph edgedefault="undirected" id="formatters.graphml">',
+                       u'\t<graph edgedefault="undirected" id="submodules.graphml">',
                        u'\t\t<node id="n0"/>',
                        u'\t\t<node id="n1"/>',
                        u'\t\t<node id="n2"/>',

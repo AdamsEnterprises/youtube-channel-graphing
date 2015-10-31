@@ -18,7 +18,6 @@ except AttributeError:
 
 import itertools
 import random
-import logging
 import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 import argparse
@@ -27,13 +26,11 @@ import networkx
 import bs4
 import matplotlib.pyplot as plt
 
-from formatters import graphml
+from submodules import graphml, logger
 
 random.seed(-1)
 
 # TODO: switch from web scraping to Youtube API
-
-DEBUG = True
 
 # url      <url to featured channel list>
 #           test:   url actually leads to valid featured channel webpage
@@ -48,23 +45,13 @@ DEBUG = True
 #           test:   filename is valid for underlying system.
 #           test:   produced file is not empty
 #           test:   produced file has expected nodes and edges
-#               cases:          <no nodes, no edges>
-#                               <1 node, no edges>
-#                               <2 nodes, 0 edges>
-#                               <2 nodes, 1 edge>
-#                               <3 nodes, 0 edges>
-#                               <3 nodes, 1 edge>
-#                               <3 nodes, 2 edges>
-#                               <7 nodes, 0 edges>
-#                               <7 nodes, 1 edge>
-#                               <7 nodes, 6 edges, not all nodes linked>
-#                               <7 nodes, 6 edges, all nodes linked>
-#                               <7 nodes, 21 edges, all nodes linked (max linkage for 7 nodes)>
 # [-v --verbosity]  <display info logging to console>
 #                   (default - 0: off)
-#                   (0: off, 1: errors only, 2: current degree and number of users processed...)
-#                   (3: new nodes, new edges, 4: date and time of message
-#                       and colleagues discovered.)
+#                   (0: off)
+#                   (1: warnings, errors only)
+#                   (2: current degree and number of users processed...)
+#                   (3: new nodes, new edges)
+#                   (4: date and time of message)
 #           test:   verbosity level gives correct format response
 #           (need to capture logging messages for comparison)
 # [-s --show_graph]
@@ -85,18 +72,6 @@ RELATED_CHANNELS_ANCHOR_ID = 'c4-primary-header-contents'
 RELATED_CHANNELS_ANCHOR_SOURCE = 'a'
 RELATED_CHANNELS_ROOT_TAG = 'ul'
 RELATED_CHANNELS_ROOT_ID_VALUE = 'browse-items-primary'
-
-# for debugging
-GLOBAL_LOGGER = logging.getLogger(__name__)
-GLOBAL_LOGGER.setLevel(logging.DEBUG)
-# TODO: shift global logger setup into subroutines, call from main_function.
-GLOBAL_LOGGER.internal_handler = logging.StreamHandler()
-GLOBAL_LOGGER.internal_handler.setLevel(logging.DEBUG)
-GLOBAL_LOGGER.internal_formatter = \
-    logging.Formatter('%(asctime)-15s ### %(filename)-15s' +
-                      ' - %(lineno)-5d ::: %(levelname)-6s - %(message)s')
-GLOBAL_LOGGER.internal_handler.setFormatter(GLOBAL_LOGGER.internal_formatter)
-GLOBAL_LOGGER.addHandler(GLOBAL_LOGGER.internal_handler)
 
 
 def setup_arg_parser():
@@ -221,7 +196,7 @@ def get_association_list(url):
             link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
                 SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
         except (KeyError, AttributeError):
-            GLOBAL_LOGGER.error('Could not parse HTML element on this page, ' +
+            logger.declare_error('Could not parse HTML element on this page, ' +
                                 'may be malformed: ' + str(url))
             continue
         listing = (user_name, link)
@@ -319,13 +294,11 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
         """
         if not user_graph.has_node(current_user):
             user_graph.add_node(current_user, degree=current_degree)
-            if DEBUG:
-                GLOBAL_LOGGER.debug('new graph node - ' + current_user)
+            logger.declare_new_node(current_user)
         if not user_graph.has_edge(origin, current_user) or \
                 user_graph.has_edge(current_user, origin):
             user_graph.add_edge(origin, current_user)
-            if DEBUG:
-                GLOBAL_LOGGER.debug('new edge - ' + origin + ', ' + current_user)
+            logger.declare_new_edge(origin, current_user)
         return
 
     # pylint: disable=maybe-no-member
@@ -336,32 +309,20 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     degree = 1
 
     while degree <= max_degree:
-        if DEBUG and degree <= max_degree:
-            GLOBAL_LOGGER.debug('new degree: ' + str(degree) + ' #######')
+        logger.declare_degree(degree)
 
         _queue_next_users__to_do(users_to_do, user_queue)
 
         while True:
 
             # unload the next users from the queue.
-            if DEBUG:
-                GLOBAL_LOGGER.debug('Is Queue Empty? :: ' + str(user_queue.empty()))
-            if DEBUG and user_queue.qsize() > 0:
-                GLOBAL_LOGGER.debug('user queue size :: ' + str(user_queue.qsize()))
-
             if user_queue.empty() and user_queue.qsize() < 1:
                 # ran out of next_users - stop analyzing this level
-                if DEBUG:
-                    GLOBAL_LOGGER.debug('about to end queue processing for this degree.')
                 break
 
             user_name, url = user_queue.get()
-            if DEBUG:
-                GLOBAL_LOGGER.debug('retrieved next user: ' + user_name + " :: " + url)
             # list of (name, url) tuples with edge to this user url.
             associations = get_association_list(url)
-            if DEBUG:
-                GLOBAL_LOGGER.debug('retrieved associations.')
             for colleague in associations:
                 colleague_name, _ = colleague
                 _process_colleague(user_name, colleague_name, degree, graph_nodes, verbosity)
@@ -369,12 +330,9 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
                     users_to_do.append(colleague)
-                if DEBUG:
-                    GLOBAL_LOGGER.debug('new user to process:' + str(colleague_name))
 
             users_processed.append((user_name, url))
-            if DEBUG:
-                GLOBAL_LOGGER.debug('processed users - ' + str(len(users_processed)))
+            logger.declare_processed_users(len(users_processed))
 
         degree += 1
     return graph_nodes
@@ -424,13 +382,12 @@ def main_function():
 
     parser = setup_arg_parser()
     arguments = verify_arguments(parser, None)
+    logger.prepare_logger(arguments.verbose)
     first_user = (extract_first_user_name(arguments.url), arguments.url)
     max_degree = arguments.degree
 
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
-
-    # TODO verbosity setup
 
     youtube_user_graph.add_node(first_user[0], degree=0)
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
