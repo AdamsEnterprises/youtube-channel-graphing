@@ -476,7 +476,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
              'PewDiePie', 'YOGSCAST Martyn', 'UberHaxorNova'),
 
             ('TheRPGMinx', 'Boyinaband', 'Zer0Doxy', 'Bryce Games',
-             'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'Smarticus',
+             'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'ManlyBadassHero',
              'GirlGamerGaB', 'KrismPro', 'Ohmwrecker / Maskedgamer',
              'Sinow', 'CriousGamers',),
 
