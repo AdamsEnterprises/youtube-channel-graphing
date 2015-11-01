@@ -395,7 +395,17 @@ class YoutubeGraphTestCases(unittest.TestCase):
             self.assertIn(node, node_lines)
         # compare for expected edge lines
         for edge in test_output[7:9]:
-            self.assertIn(edge, edge_lines)
+            try:
+                self.assertIn(edge, edge_lines)
+            except AssertionError:
+                # the nodes may be the other way around - swap them.
+                alt_edge = edge.split('/>')[0]      # dump end of tag
+                alt_edge = alt_edge.split(" ")
+                first_node = alt_edge[1].split("=")[1]  # grab names of nodes
+                last_node = alt_edge[2].split("=")[1]
+                # rearrange
+                alt_edge = u'\t\t<edge source=' + last_node + u' target=' + first_node + u'/>'
+                self.assertIn(alt_edge, edge_lines)
 
     def test_graph_conversion_to_json(self):
         self.skipTest("test not complete")
