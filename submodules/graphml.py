@@ -45,6 +45,8 @@ def make_node(element_tree, name, **attrs):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
+    if name is None:
+        raise AttributeError("node parameter cannot be None.")
     node = ET.SubElement(graph_element, 'node')
     node.set(NODE_ID, name)
     for attr in attrs:
@@ -56,6 +58,7 @@ def remove_node_and_linked_edges(element_tree, name):
     """
     given an element tree, remove the first node with an id matching the given name.
     removal of nodes requires the removal of edges associated with the node.
+    if node does not exist, nothing is removed.
     :param element_tree: the xml element representing the graph.
     :param name: name of the node.
     :return:
@@ -63,6 +66,8 @@ def remove_node_and_linked_edges(element_tree, name):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
+    if name is None:
+        raise AttributeError("node parameter cannot be None.")
     iter = graph_element.iterfind('node')
     for sub_element in iter:
         if sub_element.get(NODE_ID) == name:
@@ -84,12 +89,10 @@ def remove_all_nodes_and_edges(element_tree):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
-    iter = graph_element.iterfind('node')
-    for sub_element in iter:
+    nodes = graph_element.findall('./node')
+    for sub_element in nodes:
         graph_element.remove(sub_element)
-    iter = graph_element.iterfind('edge')
-    for sub_element in iter:
-        graph_element.remove(sub_element)
+    remove_all_edges(element_tree)
 
 
 def make_edge(element_tree, source, dest, **attrs):
@@ -104,6 +107,18 @@ def make_edge(element_tree, source, dest, **attrs):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
+    if source is None or dest is None:
+        raise AttributeError("source and dest parameters must be existing nodes within the tree.")
+    nodes = element_tree.findall("./" + GRAPH_TAG + '/' + NODE_TAG)
+    source_node_exists = False
+    dest_node_exists = False
+    for node in nodes:
+        if node.get(NODE_ID) == source:
+            source_node_exists = True
+        if node.get(NODE_ID) == dest:
+            dest_node_exists = True
+    if not (source_node_exists and dest_node_exists):
+        raise AttributeError("source and dest parameters must be existing nodes within the tree.")
     edge = ET.SubElement(graph_element, 'edge')
     edge.set(EDGE_SOURCE, source)
     edge.set(EDGE_DEST, dest)
@@ -123,10 +138,16 @@ def remove_edge(element_tree, source, dest):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
+    if source is None or dest is None:
+        raise AttributeError("source and dest parameters must be existing nodes within the tree.")
     iter = graph_element.iterfind('edge')
     for sub_element in iter:
         if sub_element.get(EDGE_SOURCE) == source and \
                 sub_element.get(EDGE_DEST) == dest:
+            graph_element.remove(sub_element)
+            break
+        elif sub_element.get(EDGE_SOURCE) == dest and \
+                sub_element.get(EDGE_DEST) == source:
             graph_element.remove(sub_element)
             break
 
@@ -140,8 +161,8 @@ def remove_all_edges(element_tree):
     graph_element = element_tree.find("./" + GRAPH_TAG)
     if graph_element is None:
         raise AttributeError("root element must have an immediate child tagged 'graph'.")
-    iter = graph_element.iterfind('edge')
-    for sub_element in iter:
+    edges = graph_element.findall('./edge')
+    for sub_element in edges:
         graph_element.remove(sub_element)
 
 
