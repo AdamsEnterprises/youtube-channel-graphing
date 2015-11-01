@@ -6,12 +6,10 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 __author__ = 'Roland'
 
 import unittest
-import os
-
 import nose
-import networkx
 
-import main_script
+import os
+import networkx
 
 
 def scrape_elements(soup, params_hierarchy):
@@ -61,12 +59,16 @@ def scrape_elements(soup, params_hierarchy):
     return elements
 
 
+import main_script
+
+
 class YoutubeGraphTestCases(unittest.TestCase):
     """
     Tests for the youtube-graph script
     """
 
     TESTING_DEFAULT_URL_ARG = 'https://www.youtube.com/user/LastWeekTonight/channels'
+
 
     def test_collect_associations(self):
         """
@@ -596,6 +598,222 @@ class YoutubeGraphTestCases(unittest.TestCase):
             self.assertEqual(status, 0)
         except Exception:
             self.fail()
+
+
+import xml.etree.ElementTree as ET
+
+from submodules import graphml
+
+
+class GraphMLModule(unittest.TestCase):
+    """
+    Tests for the GraphML Module
+    """
+
+    def setUp(self):
+        self.TESTING_EROOT = ET.Element(graphml.GRAPHML_TAG)
+        self.TESTING_EROOT.set("xmlns", "http://graphml.graphdrawing.org/xmlns")
+        self.TESTING_EROOT.set("xmlns" + ":" + graphml.XSI, "http://www.w3.org/2001/XMLSchema-instance")
+        self.TESTING_EROOT.set(graphml.XSI + ":" +
+                          graphml.SCHEMA_LOCATION, "http://graphml.graphdrawing.org/xmlns\n" +
+                         "http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd")
+        self.TESTING_EDOC = ET.SubElement(self.TESTING_EROOT, graphml.GRAPH_TAG)
+        self.TESTING_EDOC.set("id", __name__)
+        self.TESTING_EDOC.set("edgedefault", "undirected")
+
+        self.TESTING_NODE_A = ET.SubElement(self.TESTING_EDOC, 'node')
+        self.TESTING_NODE_A.set('id', 'A')
+        self.TESTING_NODE_A.set('attrib_a', 'one')
+        self.TESTING_NODE_A.set('attrib_b', 'two')
+        self.TESTING_NODE_B = ET.SubElement(self.TESTING_EDOC, 'node')
+        self.TESTING_NODE_B.set('id', 'B')
+        self.TESTING_NODE_B.set('attrib_c', 'three')
+        self.TESTING_NODE_C = ET.SubElement(self.TESTING_EDOC, 'node')
+        self.TESTING_NODE_C.set('id', 'C')
+
+        self.TESTING_EDGE_D = ET.SubElement(self.TESTING_EDOC, 'edge')
+        self.TESTING_EDGE_D.set('source', 'A')
+        self.TESTING_EDGE_D.set('target', 'B')
+        self.TESTING_EDGE_E = ET.SubElement(self.TESTING_EDOC, 'edge')
+        self.TESTING_EDGE_E.set('source', 'C')
+        self.TESTING_EDGE_E.set('target', 'A')
+        self.TESTING_EDGE_E.set('attrib_d', 'four')
+
+        self.TESTING_ETREE = ET.ElementTree(self.TESTING_EROOT)
+
+    def test_base_xml(self):
+        test_tree = graphml.make_base_xml()
+        self.assertIsInstance(test_tree, ET.ElementTree)
+        test_root = test_tree.getroot()
+        self.assertIsInstance(test_root, ET.Element)
+        test_doc = test_root.findall('./graph')
+        self.assertTrue(len(test_doc) == 1)
+        test_doc = test_doc[0]
+        self.assertIsInstance(test_doc, ET.Element)
+        # check root and doc are what they should be:
+        self.assertEqual(self.TESTING_EROOT.tag, test_root.tag)
+        self.assertEqual(self.TESTING_EROOT.get("xmlns"), test_root.get("xmlns"))
+        self.assertEqual(self.TESTING_EROOT.get("xmlns:xls"), test_root.get("xmlns:xls"))
+        self.assertEqual(self.TESTING_EROOT.get("xls:schemaLocation"),
+                         test_root.get("xls:schemaLocation"))
+
+        self.assertEqual(self.TESTING_EDOC.tag, test_doc.tag)
+        # don't check id attribute - indeterminate.
+        self.assertEqual(self.TESTING_EROOT.get("edgedefault"),
+                         test_root.get("edgedefault"))
+
+    def test_make_node(self):
+        test_tree = graphml.make_base_xml()
+
+        node = graphml.make_node(test_tree, 'A', attrib_a='one', attrib_b='two')
+        self.assertEqual(self.TESTING_NODE_A.tag, node.tag)
+        self.assertEqual(self.TESTING_NODE_A.get('attrib_a'), node.get('attrib_a'))
+        self.assertEqual(self.TESTING_NODE_A.get('attrib_b'), node.get('attrib_b'))
+
+        node = graphml.make_node(test_tree, 'B', attrib_c='three')
+        self.assertEqual(self.TESTING_NODE_B.tag, node.tag)
+        self.assertEqual(self.TESTING_NODE_B.get('attrib_c'), node.get('attrib_c'))
+
+        node = graphml.make_node(test_tree, 'C')
+        self.assertEqual(self.TESTING_NODE_B.tag, node.tag)
+
+        self.assertRaises(AttributeError, graphml.make_node, test_tree, None)
+        self.assertRaises(AttributeError, graphml.make_node, None, 'D')
+
+    def test_make_edge(self):
+        test_tree = graphml.make_base_xml()
+
+        node_A = graphml.make_node(test_tree, 'A')
+        node_B = graphml.make_node(test_tree, 'B')
+        node_C = graphml.make_node(test_tree, 'C')
+
+        edge_D = graphml.make_edge(test_tree, 'A', 'B')
+        self.assertEqual(self.TESTING_EDGE_D.tag, edge_D.tag)
+        self.assertEqual(self.TESTING_EDGE_D.get('source'), edge_D.get('source'))
+        self.assertEqual(self.TESTING_EDGE_D.get('dest'), edge_D.get('dest'))
+
+        edge_E = graphml.make_edge(test_tree, 'C', 'A', attrib_d='four')
+        self.assertEqual(self.TESTING_EDGE_E.tag, edge_E.tag)
+        self.assertEqual(self.TESTING_EDGE_E.get('source'), edge_E.get('source'))
+        self.assertEqual(self.TESTING_EDGE_E.get('dest'), edge_E.get('dest'))
+        self.assertEqual(self.TESTING_EDGE_E.get('attrib_d'), edge_E.get('attrib_d'))
+
+        self.assertRaises(AttributeError, graphml.make_edge, None, None, None)
+        self.assertRaises(AttributeError, graphml.make_edge, test_tree, None, None)
+        self.assertRaises(AttributeError, graphml.make_edge, test_tree, 'A', None)
+        self.assertRaises(AttributeError, graphml.make_edge, test_tree, None, 'A')
+
+        # No node D - should raise Error.
+        self.assertRaises(AttributeError, graphml.make_edge, test_tree, 'D', 'A')
+        self.assertRaises(AttributeError, graphml.make_edge, test_tree, 'A', 'E')
+
+    def test_remove_node(self):
+        # check node and linked edges do exist
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        self.assertIn(self.TESTING_NODE_C, nodes)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 2)
+        self.assertIn(self.TESTING_EDGE_E, edges)
+
+        graphml.remove_node_and_linked_edges(self.TESTING_ETREE, 'C')
+
+        # check node and linked edges have been removed
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 2)
+        self.assertNotIn(self.TESTING_NODE_C, nodes)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 1)
+        self.assertNotIn(self.TESTING_EDGE_E, edges)
+
+        self.assertRaises(AttributeError, graphml.remove_node_and_linked_edges, None, None)
+        self.assertRaises(AttributeError,
+                          graphml.remove_node_and_linked_edges, self.TESTING_ETREE, None)
+
+    def test_remove_edge(self):
+        # check node and linked edges do exist
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 2)
+        self.assertIn(self.TESTING_EDGE_E, edges)
+
+        graphml.remove_edge(self.TESTING_ETREE, 'C', 'A')
+
+        # check node and linked edges have been removed
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 1)
+        self.assertNotIn(self.TESTING_EDGE_E, edges)
+
+        self.assertRaises(AttributeError, graphml.remove_edge, None, None, None)
+        self.assertRaises(AttributeError, graphml.remove_edge,
+                          self.TESTING_ETREE, None, None)
+        self.assertRaises(AttributeError, graphml.remove_edge,
+                          self.TESTING_ETREE, 'A', None)
+        self.assertRaises(AttributeError, graphml.remove_edge,
+                          self.TESTING_ETREE, None, 'A')
+
+    def test_remove_all_edges(self):
+        # check node and linked edges do exist
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 2)
+
+        graphml.remove_all_edges(self.TESTING_ETREE)
+
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 0)
+
+        self.assertRaises(AttributeError, graphml.remove_all_edges, None)
+
+    def test_remove_all(self):
+        # check node and linked edges do exist
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 3)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 2)
+
+        graphml.remove_all_nodes_and_edges(self.TESTING_ETREE)
+
+        nodes = self.TESTING_ETREE.findall('./graph/node')
+        self.assertEqual(len(nodes), 0)
+        edges = self.TESTING_ETREE.findall('./graph/edge')
+        self.assertEqual(len(edges), 0)
+
+        self.assertRaises(AttributeError, graphml.remove_all_nodes_and_edges, None)
+
+    def test_tostring(self):
+        root = self.TESTING_ETREE.getroot()
+        test_xml = '<?xml version="1.0" ?>' + ET.tostring(root, 'utf-8').decode('utf-8')
+        # adjust spacing in test_xml near ends of self-ending tags.
+        tmp = test_xml.split(" />")
+        test_xml = ""
+        for string in tmp[:-1]:
+            test_xml += string + "/>"
+        test_xml += tmp[-1]
+
+        # test_xml is unprettified. Unprettify result_xml before doing comparison.
+        result_xml = graphml.build_xml_string(self.TESTING_ETREE)
+        tmp = result_xml.split('\n')
+        tmp[1] += '&#10;'
+        result_xml = ""
+        for string in tmp:
+            result_xml += string.strip()
+
+        self.maxDiff = None
+
+        # output xml first line will be xml statement. expect rest to match comparison string
+        self.assertTrue('<?xml' in result_xml[:5])
+
+        for index in range(len(test_xml)):
+            self.assertEqual(test_xml, result_xml)
+
+        self.maxDiff = 500
 
 
 if __name__ == '__main__':
