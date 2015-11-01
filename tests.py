@@ -1,6 +1,7 @@
 """
     Tests for this project
 """
+from __future__ import absolute_import, print_function, nested_scopes, generators, with_statement
 
 __author__ = 'Roland'
 
@@ -353,7 +354,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
         test_output = [u'<?xml version="1.0" ?>',
                        u'<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns',
                        u'http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
-                       u'\t<graph edgedefault="undirected" id="formatters.graphml">',
+                       u'\t<graph edgedefault="undirected" id="submodules.graphml">',
                        u'\t\t<node id="n0"/>',
                        u'\t\t<node id="n1"/>',
                        u'\t\t<node id="n2"/>',
@@ -374,14 +375,27 @@ class YoutubeGraphTestCases(unittest.TestCase):
         xml_string = main_script.convert_graph_to_xml(graph)
         xml_data = xml_string.split('\n')
 
-        print test_output
-        print ('\n\n')
-        print xml_data
-        print ('\n\n')
-
         self.assertEqual(len(xml_data), len(test_output))
-        for index in range(len(test_output)):
+        # expect first 4 lines to matchup
+        for index in range(4):
             self.assertEqual(xml_data[index], test_output[index])
+        # expect last 3 lines to matchup
+        for index in range(9, len(test_output)):
+            self.assertEqual(xml_data[index], test_output[index])
+        # organise node and edge lines, then compare
+        node_lines = []
+        edge_lines = []
+        for line in xml_data[4:9]:
+            if 'node' in line or 'id' in line:
+                node_lines.append(line)
+            elif 'edge' in line or 'source' in line or 'target' in line:
+                edge_lines.append(line)
+        # compare for expected node lines
+        for node in test_output[4:7]:
+            self.assertIn(node, node_lines)
+        # compare for expected edge lines
+        for edge in test_output[7:9]:
+            self.assertIn(edge, edge_lines)
 
     def test_graph_conversion_to_json(self):
         self.skipTest("test not complete")
@@ -462,7 +476,7 @@ class YoutubeGraphTestCases(unittest.TestCase):
              'PewDiePie', 'YOGSCAST Martyn', 'UberHaxorNova'),
 
             ('TheRPGMinx', 'Boyinaband', 'Zer0Doxy', 'Bryce Games',
-             'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'Smarticus',
+             'Kiwo', 'ZeRoyalViking', 'RitzPlays', 'ManlyBadassHero',
              'GirlGamerGaB', 'KrismPro', 'Ohmwrecker / Maskedgamer',
              'Sinow', 'CriousGamers',),
 
