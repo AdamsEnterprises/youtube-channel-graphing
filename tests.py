@@ -592,20 +592,52 @@ class YoutubeGraphTestCases(unittest.TestCase):
                                 + source + ') but did not.\n' +
                                 "Current User_list=\n" + str(user_list))
 
+
+
+
+
+
     def test_script(self):
         """
         run the main_script as a script and make sure there are no errors.
         :return:
         """
 
-        DEFAULT_FIRST_USER = 'https://www.youtube.com/user/ChaoticMonki/channels'
-        import subprocess
+        # TODO: patch verify arguments, extract_first_user_name and generate_relationship_graph
 
-        try:
-            status = subprocess.call(['python', 'main_script.py', DEFAULT_FIRST_USER])
-            self.assertEqual(status, 0)
-        except Exception:
-            self.fail()
+        arg_set = (
+            ['https://www.youtube.com/user/ChaoticMonki/channels'],
+            ['https://www.youtube.com/user/ChaoticMonki/channels', '-o', 'graphml'],
+            ['https://www.youtube.com/user/ChaoticMonki/channels', '-o', 'text']
+        )
+        new_args = []
+
+        def mock_first_name(url):
+            return 'ChaoticMonki'
+
+        def mock_verify_arguments(parser, args):
+            return parser.parse_args(
+                new_args
+            )
+
+        def mock_generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
+            graph_nodes.add_node('DamnNoHtml', degree=1)
+            graph_nodes.add_node('RussMoney', degree=1)
+            graph_nodes.add_node('wowcrendor', degree=1)
+            graph_nodes.add_edge('ChaoticMonki', 'DamnNoHtml')
+            graph_nodes.add_edge('ChaoticMonki', 'Russ Money')
+            graph_nodes.add_edge('ChaoticMonki', 'wowcrendor')
+            return graph_nodes
+
+        main_script.extract_first_user_name = mock_first_name
+        main_script.verify_arguments = mock_verify_arguments
+        main_script.generate_relationship_graph = mock_generate_relationship_graph
+
+        for new_args in arg_set:
+            try:
+                main_script.main_function()
+            except Exception:
+                self.fail()
 
 
 import xml.etree.ElementTree as ET
