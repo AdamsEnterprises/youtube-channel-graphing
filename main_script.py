@@ -91,6 +91,12 @@ def setup_arg_parser():
     parser.add_argument('-f', '--filename', action='store', type=str,
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
+    parser.add_argument('-o', '--output', action='store', type='str', default='text',
+                        choices=['text', 'graphml'],
+                        help="""Format to convert the graph data into. Valid choices are:
+                        text (default) - tab formatted text listing edges and related nodes.
+                        graphml - xml formatted according to graphml specifications.
+                        """)
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
                         choices=[1, 2, 3, 4],
                 help="""Display additional information to the console during processing.
@@ -392,9 +398,17 @@ def main_function():
     youtube_user_graph.add_node(first_user[0], degree=0)
     generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
 
+    output = convert_graph_to_text(youtube_user_graph)
+    if arguments.output == 'text':
+        output = convert_graph_to_text(youtube_user_graph)
+    elif arguments.output == 'xml':
+        output = convert_graph_to_xml(youtube_user_graph)
+
     if arguments.filename is not None:
-        text = convert_graph_to_text(youtube_user_graph)
-        generate_file(arguments.filename, text)
+        generate_file(arguments.filename, output)
+    else:
+        print ("Graph output:\n")
+        print (output)
 
     if arguments.show_graph:
         colors = generate_colours(max_degree)

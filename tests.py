@@ -288,6 +288,16 @@ class YoutubeGraphTestCases(unittest.TestCase):
             self.assertRaises(ValueError, main_script.verify_arguments,
                               *[parser, [self.TESTING_DEFAULT_URL_ARG, '-f', bad_name]])
 
+    def test_args_output(self):
+        parser = main_script.setup_arg_parser()
+        response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG])
+        self.assertEqual(response.output, 'text')
+        test_args = ['text', 'graphml']
+        for arg in test_args:
+            response = parser.parse_args([self.TESTING_DEFAULT_URL_ARG,
+                                         '-o', arg])
+            self.assertEqual(response.output, arg)
+
     def test_args_verbose(self):
         testing_verbosity = [1,2,3,4]
         parser = main_script.setup_arg_parser()
