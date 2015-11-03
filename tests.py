@@ -461,8 +461,6 @@ class YoutubeGraphTestCases(unittest.TestCase):
         # _compare_from_file(filename, test_json)
 
 
-    # TODO: check verbosity output - collect from stdout and see if it matches expected format.
-
     def test_graph_generation(self):
         """
         test the creation of the graph nodes and edges.
@@ -642,9 +640,12 @@ class GraphMLModule(unittest.TestCase):
         self.TESTING_ETREE = ET.ElementTree(self.TESTING_EROOT)
 
     def test_base_xml(self):
-        test_tree = graphml.make_base_xml('test')
+        test_tree = graphml.make_base_xml(__name__)
         self.assertIsInstance(test_tree, ET.ElementTree)
         test_root = test_tree.getroot()
+        print (test_root)
+        print(type(test_root))
+        print(ET.Element)
         self.assertIsInstance(test_root, ET.Element)
         test_doc = test_root.findall('./graph')
         self.assertTrue(len(test_doc) == 1)
@@ -658,9 +659,9 @@ class GraphMLModule(unittest.TestCase):
                          test_root.get("xls:schemaLocation"))
 
         self.assertEqual(self.TESTING_EDOC.tag, test_doc.tag)
-        self.assertEqual(self.TESTING_EDOC.get('id'), test_doc.get('id'))
-        self.assertEqual(self.TESTING_EDOC.get("edgedefault"),
-                         test_doc.get("edgedefault"))
+        self.assertEqual(self.TESTING_EDOC.get(graphml.ATTR_ID), test_doc.get(graphml.ATTR_ID))
+        self.assertEqual(self.TESTING_EDOC.get(graphml.ATTR_DIR),
+                         test_doc.get(graphml.ATTR_DIR))
 
     def test_make_node(self):
         test_tree = graphml.make_base_xml('test')
@@ -816,7 +817,7 @@ class GraphMLModule(unittest.TestCase):
         self.maxDiff = 500
 
     def test_parse_string(self):
-        self.skipTest("test not complete")
+        #self.skipTest("test not complete")
         test_string = """<?xml version="1.0" ?>
         <!DOCTYPE xmlbomb [
         <!ENTITY a "1234567890" >
@@ -843,8 +844,8 @@ class GraphMLModule(unittest.TestCase):
         }
 
         comparison_attrs_edges = {
-            'C-A':{'attrib_d': 'four'},
-            'A-B':{}
+            'AC':{'attrib_d': 'four'},
+            'AB':{}
         }
 
         tree = graphml.parse_xml_to_element_tree(test_string)
@@ -858,11 +859,11 @@ class GraphMLModule(unittest.TestCase):
         # check graphml namespace
 
         # should have <graph> element
-        doc = root.findall('./' + graphml.GRAPH_TAG)
+        doc = tree.find('./' + graphml.GRAPH_TAG)
         self.assertIsInstance(doc, ET.Element)
         self.assertEqual(doc.tag, graphml.GRAPH_TAG)
-        self.assertEqual(doc.get(graphml.ATTR_ID), "testing_parse")
-        self.assertEqual(doc.get(graphml.ATTR_DIR), "undirected")
+        self.assertEqual(doc.get(graphml.ATTR_ID), 'testing_parse')
+        self.assertEqual(doc.get(graphml.ATTR_DIR), 'undirected')
         # should have nodes with appropriate tags and elements
         nodes = root.findall('./' + graphml.GRAPH_TAG + '/' + graphml.NODE_TAG)
         for node in nodes:
@@ -880,13 +881,13 @@ class GraphMLModule(unittest.TestCase):
         for edge in edges:
             self.assertIsInstance(edge, ET.Element)
             self.assertEqual(edge.tag, graphml.EDGE_TAG)
-            self.assertIsNot(edge.get(graphml.ATTR_ID), None)
             self.assertIsNot(edge.get(graphml.EDGE_SOURCE), None)
             self.assertIsNot(edge.get(graphml.EDGE_DEST), None)
             # construct a key to retrieve appropriate comparison attributes
-            # TODO: check for ordering issues with key construction
-            edge_key = edge.get(graphml.EDGE_SOURCE) + '-' + edge.get(graphml.EDGE_DEST)
-            self.assertIn(edge_key, comparison_attrs_nodes.keys())
+            tmp = [edge.get(graphml.EDGE_SOURCE), edge.get(graphml.EDGE_DEST)]
+            tmp.sort()
+            edge_key = tmp[0] + tmp[1]
+            self.assertIn(edge_key, comparison_attrs_edges.keys())
             # compare all attributes in the node to expected values
             cmp_attribs = comparison_attrs_edges[edge_key]
             for attr in edge.attrib:
@@ -895,6 +896,45 @@ class GraphMLModule(unittest.TestCase):
                     self.assertEqual(edge.get(attr), cmp_attribs[attr])
 
         # TODO: Test with malformed nodes or edges. These should raise a Parsing Exception.
+
+        bad_test_string = """<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+        http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+            <graph edgedefault="undirected" id="testing_parse">
+                <node attrib_a="one" attrib_b="two" />
+                <node id="B" attrib_c="three" />
+                <node id="C"/>
+                <edge source="C" target="A" attrib_d="four"/>
+                <edge source="A" target="B"/>
+            </graph>
+        </graphml>"""
+
+        self.assertRaises(TypeError, graphml.parse_xml_to_element_tree, bad_test_string)
+
+        bad_test_string = """<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+        http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+            <graph edgedefault="undirected" id="testing_parse">
+                <node id="A" attrib_a="one" attrib_b="two" />
+                <node id="B" attrib_c="three" />
+                <node id="C"/>
+                <edge target="A" attrib_d="four"/>
+                <edge source="A" target="B"/>
+            </graph>
+        </graphml>"""
+
+        self.assertRaises(TypeError, graphml.parse_xml_to_element_tree, bad_test_string)
+
+        bad_test_string = """<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+        http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+            <graph edgedefault="undirected" id="testing_parse">
+                <node id="D" attrib_a="one" attrib_b="two" />
+                <node id="B" attrib_c="three" />
+                <node id="C"/>
+                <edge source="D"  target="C" attrib_d="four"/>
+                <edge target="B"/>
+            </graph>
+        </graphml>"""
+
+        self.assertRaises(TypeError, graphml.parse_xml_to_element_tree, bad_test_string)
 
 if __name__ == '__main__':
     nose.run()

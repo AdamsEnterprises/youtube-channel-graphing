@@ -3,7 +3,7 @@ A wrapper module for parsing between graph structures and GraphML format.
 """
 from __future__ import absolute_import, print_function, nested_scopes, generators, with_statement
 
-import xml.etree.cElementTree as ET
+import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import re
 
@@ -193,17 +193,22 @@ def parse_xml_to_element_tree(xml_string):
     """
 
     # this regex will remove the graphml root element - but it can be remade easily.
+    # it will remove surrounding <, </, >, /> too.
     xml_entities = re.findall('</?(.*?)/?>', xml_string)
-    for entity in xml_entities:
-        if entity.strip()[0] == '?' and entity.strip()[-1] == '?':
+    for index in range(len(xml_entities)-1, -1, -1):
+        if xml_entities[index].strip()[0] == '?' and xml_entities[index].strip()[-1] == '?':
             # xml header, not needed
-            del entity
-        elif entity[0] == '!':
+            del xml_entities[index]
+        elif xml_entities[index][0] == '!':
             # possible ssi comment or doc / entity declaration - might be dangerous.
-            del entity
-        elif entity[0] == '/':
+            del xml_entities[index]
+        elif xml_entities[index][0] == '/':
             # don't need ending tags
-            del entity
+            del xml_entities[index]
+        elif len(xml_entities[index].split()) == 1:
+            # an unattributed tag - not expected, likely an ending tag.
+            if xml_entities[index] == GRAPH_TAG or xml_entities[index] == GRAPHML_TAG:
+                del xml_entities[index]
     for index in range(len(xml_entities)):
         if xml_entities[index][-1] == '/':
             # remove end chars in self ending entities.
@@ -214,6 +219,7 @@ def parse_xml_to_element_tree(xml_string):
     node_tags = []
     edge_tags = []
     for entity in xml_entities:
+        print (entity)
         if entity[0:5] == GRAPH_TAG:
             graph_entity = entity
         elif entity[0:4] == NODE_TAG:
@@ -221,33 +227,63 @@ def parse_xml_to_element_tree(xml_string):
         elif entity[0:4] == EDGE_TAG:
             edge_tags.append(entity)
 
+    name = "graphml"
+    edgedefault = "undirected"
     if graph_entity is not None:
-        _, name, edgedefault = graph_entity.split()
-    else:
-        _, name, edgedefault = "", "submodules.graphml", "undirected"
+        graph_entity_attribs = graph_entity.split()[1:]
+        for tmp in graph_entity_attribs:
+            if ATTR_ID + '=' in tmp:
+                name = re.findall('"(.*?)"', tmp.split('=')[1])[0]
+            if ATTR_DIR + '=' in tmp:
+                edgedefault = re.findall('"(.*?)"', tmp.split('=')[1])[0]
 
     # build the basic tree.
     if edgedefault == "undirected":
-        directed = True
-    elif edgedefault == "directed":
         directed = False
+    elif edgedefault == "directed":
+        directed = True
     else:
         directed = False
     tree = make_base_xml(name, directed)
     # get the doc and attach nodes and edges to it.
     doc = tree.find('./' + GRAPH_TAG)
+
+    # TODO: check the raising of TypeErrors for malformed nodes and edges
+
+    node_ids = set()
     for node in node_tags:
-        node_attribs = node.split()[1:]
-        new_node = ET.SubElement(doc, NODE_TAG)
-        for attr in node_attribs:
-            tmp = attr.split('=')
-            new_node.set(tmp[0], tmp[1])
+        try:
+            node_attribs = node.split()[1:]
+            node_dict = dict()
+            for tmp in node_attribs:
+                key, value = tmp.split('=')
+                node_dict[key] = re.findall('"(.*?)"', value)[0]
+            assert ATTR_ID in node_dict
+            node_ids.add(node_dict[ATTR_ID])
+            new_node = ET.SubElement(doc, NODE_TAG)
+            for attr in node_dict:
+                new_node.set(attr, node_dict[attr])
+        except AssertionError:
+            raise TypeError("node entities must have an id=<name> attribute." +
+                            "\nEntity: " + node)
     for edge in edge_tags:
-        edge_attribs = edge.split()[1:]
-        new_edge = ET.SubElement(doc, EDGE_TAG)
-        for attr in edge_attribs:
-            tmp = attr.split('=')
-            new_edge.set(tmp[0], tmp[1])
+        try:
+            edge_attribs = edge.split()[1:]
+            edge_dict = dict()
+            for tmp in edge_attribs:
+                key, value = tmp.split('=')
+                edge_dict[key] = re.findall('"(.*?)"', value)[0]
+            assert EDGE_SOURCE in edge_dict
+            assert EDGE_DEST in edge_dict
+            assert edge_dict[EDGE_SOURCE] in node_ids
+            assert edge_dict[EDGE_DEST] in node_ids
+            new_edge = ET.SubElement(doc, EDGE_TAG)
+            for attr in edge_dict:
+                new_edge.set(attr, edge_dict[attr])
+        except AssertionError:
+            raise TypeError("edge entities must have source=<node name> and target=<node name>" +
+                            "attributes, and each <node name> must refer to nodes in the xml." +
+                            "\nEntity: " + edge)
 
     return tree
 
