@@ -79,6 +79,9 @@ def setup_arg_parser():
     prepare and set up the argumentParser for this script
     :return: the argumentParser
     """
+
+    # TODO: add options for different output data formats
+
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
