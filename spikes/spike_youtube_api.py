@@ -1,4 +1,4 @@
-
+from __future__ import print_function, absolute_import
 from apiclient import discovery
 
 API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
@@ -21,7 +21,7 @@ def main_runner():
                                      channelId=CHANNEL_ID_PEWDIEPIE).execute()
     multiple_channels_ids = []
     for item in  response['items']:
-        print item
+        print (item)
         if item['snippet']['type'] == 'multipleChannels':
             multiple_channels_ids.append(item['id'])
     print (multiple_channels_ids)
