@@ -1,5 +1,23 @@
 # Test Plan
 
+## ----------------------------
+
+
+## Purpose:
+
+To test correctness of important Features within the Youtube Graph script.
+
+Such procedures include:
+    Extracting critical information through the Youtube API.
+    parsing and validating command line arguments.
+
+
+## Environment:
+
+Testing is to be conducted using a test script. 
+
+## Features to Test:
+
 
 ## API
 
@@ -17,7 +35,7 @@
 
 - Featured Channel Extraction
     Given the URL of a youtube channel, extract all public featured channels of this channel as
-    (Channel Name , URL) tuples.
+    URLs.
 
     * No featured channels
     * 1 Featured channel
@@ -32,9 +50,17 @@
 
 ## Arguments
 
+- parsing
+
+    Test the parsed argument results are valid
+
+    * combinations of valid arguments
+    * combinations with invalid arguments.
+    * combinations with missing optional arguments (defaults)
+
 - initial URL
 
-    Test the URL is valid.
+    Validation of the URL.
 
     * Valid URL to a channel
     * Invalid (non-existent) URL
@@ -43,7 +69,7 @@
 
 - degree
 
-    Test the degree is a positive integer.
+    Validation of the degree, as a positive integer.
 
     * 1
     * 0
@@ -53,33 +79,17 @@
 
 - filename
 
-    Test the requested filename is a valid filename.
+    Validation of the filename, appropriate to the system.
 
     * Valid
     * Invalid
-    * null
-
-- verbosity
-
-    Test the verbosity level is a valid choice.
-    Test the verbosity output is the correct format.
-    Test there is no verbosity if not requested.
-
-    * In range 1-4
-    * outside range
-    * 1: Error messages only
-    * 2: Current Degree
-    * 3: Current Degree, current user being processed, number of users processed.
-    * 4: Suitable for Debugging (Date Time statements).
-         Current Degree, current user being processed, number of users processed, associations found, URLs and Channel Names, initial URL and channel name.
-    * Default case of 0 / null: No verbose statements
+    * null - default
 
 - formatted data output
 
     See [issue #34.](https://github.com/rask004/youtube-channel-graphing/issues/34)
 
-    Test if an output format is specified, the output is actually in that format.
-    Test if no output format is specified, the default test output is used.
+    Validation that if output is formatted a particular way, it is correct.
 
     * gexf: GEXF format
     * gml: GML format
@@ -88,11 +98,11 @@
     * text: edge list format
     * none / null: edge list format
 
-- show graph visually
 
-    Test that a graph is shown visually, in a diagram, without errors.
+## Features to not test:
 
-    * No Exceptions
-    ?
+- Verbose message formats. May not be in the release version.
 
+- scripting related to the CI Server.
 
+- showing the graph in a diagram.
