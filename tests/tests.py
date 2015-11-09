@@ -10,6 +10,8 @@ import nose
 
 from networkx import Graph
 
+from apiclient import discovery
+
 import main_script
 
 
@@ -66,10 +68,16 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
     """
 
     TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
-
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
+    YOUTUBE_API_SERVICE_NAME = "youtube"
+    YOUTUBE_API_VERSION = "v3"
 
     INVALID_CODE = '________________________'
+
+    def youtube_build_api(self):
+        youtube = discovery.build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION,
+                                  developerKey=self.API_KEY)
+        return youtube
 
     def test_collect_associations(self):
         """
@@ -82,8 +90,9 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
 
         # sort the target_list
         testing_target_urls.sort()
-
-        results = main_script.get_association_list(self.TESTING_CHANNEL_ID, self.API_KEY)
+        api=self.youtube_build_api()
+        non_api = discovery.RawModel()      # object that is not actually an api.
+        results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api=api)
 
         # sort the results
         results.sort()
@@ -95,25 +104,26 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         for i in range(len(results)):
             self.assertEqual(results[i], testing_target_urls[i])
 
-        self.assertRaises(ValueError, main_script.get_association_list, None, self.API_KEY)
+        self.assertRaises(ValueError, main_script.get_association_list, None, api=api)
         self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, None)
         self.assertRaises(ValueError, main_script.get_association_list, None, None)
-        self.assertRaises(ValueError, main_script.get_association_list, self.INVALID_CODE, self.API_KEY)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, self.INVALID_CODE)
+        self.assertRaises(ValueError, main_script.get_association_list, self.INVALID_CODE, api=api)
+        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, non_api)
 
     def test_extract_user_name(self):
 
         testing_target_username = "LastWeekTonight"
-
-        name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, self.API_KEY)
+        api=self.youtube_build_api()
+        non_api = discovery.RawModel()      # object that is not actually an api.
+        name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
 
         self.assertEqual(testing_target_username, name)
 
-        self.assertRaises(ValueError, main_script.extract_user_name, None, self.API_KEY)
+        self.assertRaises(ValueError, main_script.extract_user_name, None, api)
         self.assertRaises(ValueError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
         self.assertRaises(ValueError, main_script.extract_user_name, None, None)
-        self.assertRaises(ValueError, main_script.extract_user_name, self.INVALID_CODE, self.API_KEY)
-        self.assertRaises(ValueError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, self.INVALID_CODE)
+        self.assertRaises(ValueError, main_script.extract_user_name, self.INVALID_CODE, api)
+        self.assertRaises(ValueError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
 
 
 class ArgsParserTestCases(unittest.TestCase):
@@ -199,7 +209,14 @@ class ArgsVerificationTestCases(unittest.TestCase):
 
     # TODO: add tests.
 
+    def test_verify_filename(self):
+        self.fail()
 
+    def test_verify_api_key(self):
+        self.fail()
+
+    def test_verify_channel_id(self):
+        self.fail()
 
 
 class DataOutputTestCases(unittest.TestCase):
