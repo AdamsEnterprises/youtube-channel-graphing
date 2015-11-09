@@ -69,15 +69,19 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
 
     TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
-    YOUTUBE_API_SERVICE_NAME = "youtube"
-    YOUTUBE_API_VERSION = "v3"
-
     INVALID_CODE = '________________________'
 
-    def youtube_build_api(self):
-        youtube = discovery.build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION,
-                                  developerKey=self.API_KEY)
-        return youtube
+    def _youtube_api(self):
+        return discovery.build(developerKey=self.API_KEY, serviceName='youtube', version='v3')
+
+    def test_api_creation(self):
+        try:
+            api = main_script.create_youtube_api(developerKey=self.API_KEY)
+        except Exception:
+            self.fail()
+
+        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=self.INVALID_CODE)
+        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=None)
 
     def test_collect_associations(self):
         """
@@ -86,44 +90,49 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_target_urls = []
+        # TODO: complete the list of comparison ids.
+        testing_target_ids = []
 
         # sort the target_list
-        testing_target_urls.sort()
-        api=self.youtube_build_api()
-        non_api = discovery.RawModel()      # object that is not actually an api.
-        results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api=api)
+        testing_target_ids.sort()
+
+        try:
+            api = self._youtube_api()
+            non_api = discovery.RawModel()      # object that is not actually an api.
+            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api=api)
+        except Exception:
+            self.fail()
 
         # sort the results
         results.sort()
 
         # result and target should be comparable by index
 
-        self.assertEqual(len(results), len(testing_target_urls))
+        self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
-            self.assertEqual(results[i], testing_target_urls[i])
+            self.assertEqual(results[i], testing_target_ids[i])
 
         self.assertRaises(ValueError, main_script.get_association_list, None, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(ValueError, main_script.get_association_list, None, None)
+        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=None)
+        self.assertRaises(ValueError, main_script.get_association_list, None, api=None)
         self.assertRaises(ValueError, main_script.get_association_list, self.INVALID_CODE, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, non_api)
+        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=non_api)
 
     def test_extract_user_name(self):
 
         testing_target_username = "LastWeekTonight"
-        api=self.youtube_build_api()
+        api=self._youtube_api()
         non_api = discovery.RawModel()      # object that is not actually an api.
         name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
 
         self.assertEqual(testing_target_username, name)
 
-        self.assertRaises(ValueError, main_script.extract_user_name, None, api)
-        self.assertRaises(ValueError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(ValueError, main_script.extract_user_name, None, None)
-        self.assertRaises(ValueError, main_script.extract_user_name, self.INVALID_CODE, api)
-        self.assertRaises(ValueError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
+        self.assertRaises(AttributeError, main_script.extract_user_name, None, api)
+        self.assertRaises(AttributeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(AttributeError, main_script.extract_user_name, None, None)
+        self.assertRaises(AttributeError, main_script.extract_user_name, self.INVALID_CODE, api)
+        self.assertRaises(AttributeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
 
 
 class ArgsParserTestCases(unittest.TestCase):
@@ -141,12 +150,8 @@ class ArgsParserTestCases(unittest.TestCase):
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY])
         self.assertEqual(str(response), expected_defaults)
 
-        self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG, None])
-        self.assertRaises(Exception, parser.parse_args, [None, self.TESTING_API_KEY])
-        self.assertRaises(Exception, parser.parse_args, [None, None])
-        # TODO: may cause script closure. consider using subprocesses
-        self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG])
-        self.assertRaises(Exception, parser.parse_args, [])
+        # Do not check nulls - verify_arguments will do this.
+        # Do not check incorrect number of required arguments.
 
     # Do not test verifying the Channel Arg, as this will retest extract_user_name.
 
@@ -157,11 +162,7 @@ class ArgsParserTestCases(unittest.TestCase):
             response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
-        # TODO: may cause script closure. consider using subprocesses
-        testing_degrees = ['0', '-1', 'a', '!']
-        for test_degree in testing_degrees:
-            self.assertRaises(Exception, parser.parse_args,
-                              [self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
+        # Do not check degrees of 0 or less (non-sensical) - verify_arguments will do this.
 
     def test_args_filename(self):
         filename = 'mock_filename'
@@ -180,10 +181,7 @@ class ArgsParserTestCases(unittest.TestCase):
                                           self.TESTING_API_KEY, '-o', option])
             self.assertEqual(response.output, option)
 
-        # TODO: may cause script closure. consider using subprocesses
-        for bad_option in [None, 'false_output']:
-            self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG,
-                                          self.TESTING_API_KEY, '-o', bad_option])
+        # Do not check bad choices - arg parser will catch this.
 
     def test_args_verbose(self):
         testing_verbosity = [1,2,3,4]
@@ -193,30 +191,44 @@ class ArgsParserTestCases(unittest.TestCase):
                                           self.TESTING_API_KEY, '-v', option])
             self.assertEqual(response.verbose, option)
 
-        # TODO: may cause script closure. consider using subprocesses
-        testing_verbosity = [0, -1, 5]
-        for bad_verbose in testing_verbosity:
-            self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG,
-                              self.TESTING_API_KEY, '-v', bad_verbose])
-
 
 class ArgsVerificationTestCases(unittest.TestCase):
 
     TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
 
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
+    BAD_KEY = '_______________________________________'
 
+    TESTING_FILENAME = 'graph'
+    TESTING_EXT = 'out'
+    BAD_CHARS = """^&*[]{};:\'\"?/\\><,"""
 
-    # TODO: add tests.
+    def test_verify_args(self):
+        parser = main_script.setup_arg_parser()
 
-    def test_verify_filename(self):
-        self.fail()
+        try:
+            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                         '-d', '1', '-f', self.TESTING_FILENAME + '.' +
+                                                         self.TESTING_EXT])
+            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                         '-d', '99999', '-f', '.' + self.TESTING_FILENAME
+                                                         + '.' + self.TESTING_EXT])
+            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                         '-d', '99999', '-f', self.TESTING_FILENAME
+                                                         + '.' + self.TESTING_EXT + '.'])
+            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                         '-d', '99999', '-f', self.TESTING_FILENAME])
+        except Exception:
+            self.fail()
 
-    def test_verify_api_key(self):
-        self.fail()
-
-    def test_verify_channel_id(self):
-        self.fail()
+        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                  '-d', '0', '-f', self.TESTING_FILENAME])
+        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                                  '-d', '-1', '-f', self.TESTING_FILENAME])
+        for char in self.BAD_CHARS:
+            self.assertRaises(Exception, main_script.verify_arguments,
+                              [self.TESTING_CHANNEL_ID, self.API_KEY,
+                              '-f', self.TESTING_FILENAME + char])
 
 
 class DataOutputTestCases(unittest.TestCase):
@@ -228,18 +240,23 @@ class DataOutputTestCases(unittest.TestCase):
     MOCK_OUTPUT = "This is mock output."
 
     def test_graph_conversion_to_text(self):
+        output = main_script.convert_graph_to_text(self.MOCK_GRAPH)
         self.fail()
 
     def test_graph_conversion_to_graphml(self):
+        output = main_script.convert_graph_to_graphml(self.MOCK_GRAPH)
         self.fail()
 
     def test_graph_conversion_to_json(self):
+        output = main_script.convert_graph_to_json(self.MOCK_GRAPH)
         self.fail()
 
     def test_graph_conversion_to_gefx(self):
+        output = main_script.convert_graph_to_gefx(self.MOCK_GRAPH)
         self.fail()
 
     def test_graph_conversion_to_yaml(self):
+        output = main_script.convert_graph_to_yaml(self.MOCK_GRAPH)
         self.fail()
 
     def test_data_outputting(self):

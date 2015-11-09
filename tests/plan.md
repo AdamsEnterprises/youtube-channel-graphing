@@ -21,8 +21,15 @@ Testing is to be conducted using a test script.
 
 ## API
 
-    See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
+See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
 
+- API creation
+    Given the api-key, generate an api object to interface with the youtube api.
+    
+    * good key
+    * bad key
+    * null
+    
 - User Name extraction
     Given a URL to a youtube channel, extract the channel name or user name.
 
@@ -30,7 +37,7 @@ Testing is to be conducted using a test script.
     * Modern Channel URLs
 
     * Exceptions
-        - Malformed API request
+        - Malformed API request or bad api client
         - non existent channel URL
 
 - Featured Channel Extraction
@@ -106,3 +113,9 @@ Testing is to be conducted using a test script.
 - scripting related to the CI Server.
 
 - showing the graph in a diagram.
+
+- incorrect number of required CLI arguments
+
+- bad choices for verbosity or output formats - the arg parser will do this itself.
+
+- 
