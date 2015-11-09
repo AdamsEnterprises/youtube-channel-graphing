@@ -8,6 +8,10 @@ __author__ = 'Roland'
 import unittest
 import nose
 
+from networkx import Graph
+
+import main_script
+
 
 def scrape_elements(soup, params_hierarchy):
     """
@@ -54,9 +58,6 @@ def scrape_elements(soup, params_hierarchy):
                         results.append(item)
         elements = list(results)
     return elements
-
-
-import main_script
 
 
 class YoutubeApiProceduresTestCases(unittest.TestCase):
@@ -189,7 +190,17 @@ class ArgsParserTestCases(unittest.TestCase):
                               self.TESTING_API_KEY, '-v', bad_verbose])
 
 
-from networkx import Graph
+class ArgsVerificationTestCases(unittest.TestCase):
+
+    TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
+
+    API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
+
+
+    # TODO: add tests.
+
+
+
 
 class DataOutputTestCases(unittest.TestCase):
 
