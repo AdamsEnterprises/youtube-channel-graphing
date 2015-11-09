@@ -121,14 +121,19 @@ class ArgsParserTestCases(unittest.TestCase):
     TESTING_API_KEY = 'mock_api_key'
 
     def test_args_defaults(self):
+
+        expected_defaults = "Namespace(api_key=" + repr(self.TESTING_CHANNEL_ARG) + \
+                            ", degree=1, filename=None, id=" + self.TESTING_API_KEY + \
+                            ", output='text', show_graph=False, verbose=0)"
+
         parser = main_script.setup_arg_parser()
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY])
-
-        self.fail()
+        self.assertEqual(str(response), expected_defaults)
 
         self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG, None])
         self.assertRaises(Exception, parser.parse_args, [None, self.TESTING_API_KEY])
         self.assertRaises(Exception, parser.parse_args, [None, None])
+        # TODO: may cause script closure. consider using subprocesses
         self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG])
         self.assertRaises(Exception, parser.parse_args, [])
 
@@ -141,41 +146,63 @@ class ArgsParserTestCases(unittest.TestCase):
             response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
-        # testing_degrees = ['0', '-1', 'a', '!']
-        # for test_degree in testing_degrees:
-        #     self.assertRaises(Exception, parser.parse_args,
-        #                       [self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
+        # TODO: may cause script closure. consider using subprocesses
+        testing_degrees = ['0', '-1', 'a', '!']
+        for test_degree in testing_degrees:
+            self.assertRaises(Exception, parser.parse_args,
+                              [self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
 
     def test_args_filename(self):
+        filename = 'mock_filename'
         parser = main_script.setup_arg_parser()
+        response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-f', filename])
 
-        self.fail()
+        self.assertEqual(response.filename, filename)
 
-    def test_args_verify_filename(self):
-        parser = main_script.setup_arg_parser()
-        self.fail()
+        # No null case - as default is null to indicate no recording to file.
 
     def test_args_output(self):
+        testing_outputs = ['text', 'graphml','gexf','json','yaml']
         parser = main_script.setup_arg_parser()
-        self.fail()
+        for option in testing_outputs:
+            response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                          self.TESTING_API_KEY, '-o', option])
+            self.assertEqual(response.output, option)
+
+        # TODO: may cause script closure. consider using subprocesses
+        for bad_option in [None, 'false_output']:
+            self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG,
+                                          self.TESTING_API_KEY, '-o', bad_option])
 
     def test_args_verbose(self):
         testing_verbosity = [1,2,3,4]
         parser = main_script.setup_arg_parser()
+        for option in testing_verbosity:
+            response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                          self.TESTING_API_KEY, '-v', option])
+            self.assertEqual(response.verbose, option)
 
-        self.fail()
+        # TODO: may cause script closure. consider using subprocesses
+        testing_verbosity = [0, -1, 5]
+        for bad_verbose in testing_verbosity:
+            self.assertRaises(Exception, parser.parse_args, [self.TESTING_CHANNEL_ARG,
+                              self.TESTING_API_KEY, '-v', bad_verbose])
 
-        # testing_verbosity = [0, -1, 5]
-        # for test_verbose in testing_verbosity:
-        #     self.assertRaises(Exception, parser.parse_args,
-        #                       *[self.TESTING_DEFAULT_URL_ARG, '-v', test_verbose])
+
+from networkx import Graph
+
+class DataOutputTestCases(unittest.TestCase):
+
+    MOCK_GRAPH = Graph()
+    MOCK_GRAPH.add_edge('1','2')
+    MOCK_GRAPH.add_edge('2','3')
+
+    MOCK_OUTPUT = "This is mock output."
 
     def test_graph_conversion_to_text(self):
-
         self.fail()
 
     def test_graph_conversion_to_graphml(self):
-
         self.fail()
 
     def test_graph_conversion_to_json(self):
@@ -187,10 +214,7 @@ class ArgsParserTestCases(unittest.TestCase):
     def test_graph_conversion_to_yaml(self):
         self.fail()
 
-    def test_file_creation(self):
-        self.fail()
-
-    def test_console_output(self):
+    def test_data_outputting(self):
         self.fail()
 
 if __name__ == '__main__':
