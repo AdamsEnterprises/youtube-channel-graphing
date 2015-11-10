@@ -9,6 +9,7 @@ import unittest
 import nose
 import os
 import json
+import sys
 
 import networkx as nx
 from networkx import Graph
@@ -245,9 +246,16 @@ class DataOutputTestCases(unittest.TestCase):
 
     MOCK_FILE_OUTPUT = 'graph.out'
 
+    STDOUT_REDIRECTION = 'output_std_file'
+
+    def setUp(self):
+        self.old_stdout = sys.stdout
+        sys.stdout = open(self.STDOUT_REDIRECTION, 'w')
+
     def tearDown(self):
         if os.path.exists(self.MOCK_FILE_OUTPUT):
             os.remove(self.MOCK_FILE_OUTPUT)
+        sys.stdout = self.old_stdout
 
     def test_graph_conversion_to_text(self):
         output = main_script.convert_graph_to_text(self.MOCK_GRAPH)
@@ -257,9 +265,8 @@ class DataOutputTestCases(unittest.TestCase):
             self.assertEqual(output[index], expected[index])
 
     def test_graph_conversion_to_graphml(self):
-        # mock convert_graph_to_graphml -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_graphml(self.MOCK_GRAPH)
-        result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_graphml(main_script.TMP_FILENAME)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
@@ -277,30 +284,28 @@ class DataOutputTestCases(unittest.TestCase):
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_gexf(self):
-        # mock convert_graph_to_gexf -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_gefx(self.MOCK_GRAPH)
-        result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_gexf(main_script.TMP_FILENAME)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_yaml(self):
-        # mock convert_graph_to_yaml -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_yaml(self.MOCK_GRAPH)
-        result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_yaml(main_script.TMP_FILENAME)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_data_outputting(self):
-        filename = 'graph.out'
-        main_script.generate_output(filename, self.MOCK_OUTPUT)
-        self.assertTrue(os.path.exists('graph.out'))
+        main_script.generate_output(self.MOCK_FILE_OUTPUT, self.MOCK_OUTPUT)
+        self.assertTrue(os.path.exists(self.MOCK_FILE_OUTPUT))
         with open(self.MOCK_FILE_OUTPUT) as f:
-            self.assertEqual(f.read(), self.MOCK_FILE_OUTPUT)
+            self.assertEqual(f.read(), self.MOCK_OUTPUT)
 
         main_script.generate_output(None, self.MOCK_OUTPUT)
-        # collect console output for comparison.
+        sys.stdout.flush()
+        with open(self.STDOUT_REDIRECTION) as f:
+            self.assertEqual(f.read(), self.MOCK_OUTPUT)
 
-        self.fail()
 
 if __name__ == '__main__':
     nose.run()
