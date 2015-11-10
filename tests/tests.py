@@ -7,8 +7,12 @@ __author__ = 'Roland'
 
 import unittest
 import nose
+import os
+import json
 
+import networkx as nx
 from networkx import Graph
+from networkx.readwrite import json_graph
 
 from apiclient import discovery
 
@@ -107,7 +111,6 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         results.sort()
 
         # result and target should be comparable by index
-
         self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
@@ -174,7 +177,7 @@ class ArgsParserTestCases(unittest.TestCase):
         # No null case - as default is null to indicate no recording to file.
 
     def test_args_output(self):
-        testing_outputs = ['text', 'graphml','gexf','json','yaml']
+        testing_outputs = ['text', 'graphml', 'gml','gexf','json','yaml']
         parser = main_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -234,32 +237,69 @@ class ArgsVerificationTestCases(unittest.TestCase):
 class DataOutputTestCases(unittest.TestCase):
 
     MOCK_GRAPH = Graph()
+    MOCK_GRAPH.add_node('1', degree=0)
     MOCK_GRAPH.add_edge('1','2')
     MOCK_GRAPH.add_edge('2','3')
 
-    MOCK_OUTPUT = "This is mock output."
+    MOCK_OUTPUT = "This is mock output.\n"
+
+    MOCK_FILE_OUTPUT = 'graph.out'
+
+    def tearDown(self):
+        if os.path.exists(self.MOCK_FILE_OUTPUT):
+            os.remove(self.MOCK_FILE_OUTPUT)
 
     def test_graph_conversion_to_text(self):
         output = main_script.convert_graph_to_text(self.MOCK_GRAPH)
-        self.fail()
+        output.sort()
+        expected = "1 2\n2 3\n"
+        for index in range(len(output)):
+            self.assertEqual(output[index], expected[index])
 
     def test_graph_conversion_to_graphml(self):
+        # mock convert_graph_to_graphml -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_graphml(self.MOCK_GRAPH)
-        self.fail()
+        result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
+        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
+        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+
+    def test_graph_conversion_to_gml(self):
+        output = main_script.convert_graph_to_gml(self.MOCK_GRAPH)
+        result_graph = nx.parse_gml(output)
+        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
+        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_json(self):
         output = main_script.convert_graph_to_json(self.MOCK_GRAPH)
-        self.fail()
+        json_data = json.load(output)
+        result_graph = json_graph.tree_graph(json_data)
+        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
+        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
-    def test_graph_conversion_to_gefx(self):
+    def test_graph_conversion_to_gexf(self):
+        # mock convert_graph_to_gexf -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_gefx(self.MOCK_GRAPH)
-        self.fail()
+        result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
+        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
+        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_yaml(self):
+        # mock convert_graph_to_yaml -> tmp file, to MOCK_FILE_OUTPUT
         output = main_script.convert_graph_to_yaml(self.MOCK_GRAPH)
-        self.fail()
+        result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
+        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
+        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_data_outputting(self):
+        filename = 'graph.out'
+        main_script.generate_output(filename, self.MOCK_OUTPUT)
+        self.assertTrue(os.path.exists('graph.out'))
+        with open(self.MOCK_FILE_OUTPUT) as f:
+            self.assertEqual(f.read(), self.MOCK_FILE_OUTPUT)
+
+        main_script.generate_output(None, self.MOCK_OUTPUT)
+        # collect console output for comparison.
+
         self.fail()
 
 if __name__ == '__main__':
