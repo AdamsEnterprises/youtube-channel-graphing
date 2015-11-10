@@ -5,7 +5,7 @@ API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
-CHANNEL_ID_PEWDIEPIE = 'UC-lHJZR3Gqxm24_Vd_AJ5Yw'
+BASE_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
 
 
 def youtube_build_api():
@@ -16,15 +16,14 @@ def youtube_build_api():
 
 def main_runner():
     api = youtube_build_api()
-    channel_sections = api.channelSections()
-    response = channel_sections.list(part='snippet',
-                                     channelId=CHANNEL_ID_PEWDIEPIE).execute()
-    multiple_channels_ids = []
-    for item in  response['items']:
-        print (item)
-        if item['snippet']['type'] == 'multipleChannels':
-            multiple_channels_ids.append(item['id'])
-    print (multiple_channels_ids)
+    response = api.channels().list(part='brandingSettings', id=BASE_CHANNEL_ID).execute()
+    base_channel = response['items'][0]['brandingSettings']['channel']
+    print (base_channel['title'], BASE_CHANNEL_ID)
+
+    for id in base_channel['featuredChannelsUrls']:
+        response = api.channels().list(part='brandingSettings', id=id).execute()
+        channel = response['items'][0]['brandingSettings']['channel']
+        print (channel['title'], id)
 
 if __name__ == '__main__':
     main_runner()
