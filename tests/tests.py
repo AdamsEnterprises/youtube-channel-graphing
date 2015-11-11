@@ -15,7 +15,8 @@ import networkx as nx
 from networkx import Graph
 from networkx.readwrite import json_graph
 
-from apiclient import discovery
+from googleapiclient import discovery
+from googleapiclient.errors import HttpError
 
 import main_script
 
@@ -79,15 +80,6 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
     def _youtube_api(self):
         return discovery.build(developerKey=self.API_KEY, serviceName='youtube', version='v3')
 
-    def test_api_creation(self):
-        try:
-            api = main_script.create_youtube_api(developerKey=self.API_KEY)
-        except Exception:
-            self.fail()
-
-        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=self.INVALID_CODE)
-        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=None)
-
     def test_collect_associations(self):
         """
         test an expected set of associations is created,
@@ -95,8 +87,9 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        # TODO: complete the list of comparison ids.
-        testing_target_ids = []
+        testing_target_ids = ['HBO','Cinemax','HBOBoxing','HBODocs',
+                              'Real Time with Bill Maher','GameofThrones','trueblood',
+                              'HBOLatino']
 
         # sort the target_list
         testing_target_ids.sort()
@@ -104,8 +97,8 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         try:
             api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
-            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api=api)
-        except Exception:
+            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api)
+        except (HttpError, ValueError):
             self.fail()
 
         # sort the results
@@ -115,16 +108,20 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
-            self.assertEqual(results[i], testing_target_ids[i])
+            self.assertEqual(results[i][0], testing_target_ids[i])
 
-        self.assertRaises(ValueError, main_script.get_association_list, None, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=None)
-        self.assertRaises(ValueError, main_script.get_association_list, None, api=None)
-        self.assertRaises(ValueError, main_script.get_association_list, self.INVALID_CODE, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=non_api)
+        self.assertRaises(AttributeError, main_script.get_association_list, None, api)
+        self.assertRaises(AttributeError, main_script.get_association_list,
+                          self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(AttributeError, main_script.get_association_list, None, None)
+        self.assertRaises(AttributeError, main_script.get_association_list, self.INVALID_CODE, api)
+        self.assertRaises(AttributeError, main_script.get_association_list,
+                          self.TESTING_CHANNEL_ID, non_api)
 
     def test_extract_user_name(self):
-
+        """
+        test that extract_user_name collects the user_name from a channel id with an api object.
+        """
         testing_target_username = "LastWeekTonight"
         api=self._youtube_api()
         non_api = discovery.RawModel()      # object that is not actually an api.

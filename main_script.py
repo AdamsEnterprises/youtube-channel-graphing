@@ -5,18 +5,6 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 __author__ = 'Roland'
 
-
-
-import urllib as urlManager
-
-try:
-    # pylint: disable=no-member
-    urlManager.urlopen
-except AttributeError:
-    #pylint: disable=no-member
-    from urllib import request as urlManager
-
-
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
 
@@ -26,6 +14,10 @@ import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 import argparse
 
+from googleapiclient import discovery
+from googleapiclient.errors import HttpError
+
+
 import networkx
 import matplotlib.pyplot as plt
 
@@ -34,6 +26,9 @@ random.seed(-1)
 
 GENERAL_MESSAGE = '%(message)s'
 DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
+
+API_YOUTUBE_SERVICE = 'youtube'
+API_VERSION = 'v3'
 
 
 def prepare_logger(verbosity):
@@ -212,58 +207,72 @@ def verify_arguments(parser, args):
     return arguments
 
 
-def get_association_list(url):
+def create_youtube_api(developerKey=None):
     """
-    grab the webpage at the given url
-    :param url: the url to retrieve associated channels from.
-    :return: a list of (user name, associated channel url).
+    generate an api object for interfacing with the google youtube api.
+    :param developerKey:
+    :return:
+    """
+    if developerKey is None:
+        raise HttpError('Error: developerKey cannot be null.')
+    api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
+                          developerKey=developerKey)
+    # test api
+    return api
+
+
+
+def get_association_list(id, api):
+    """
+    grab a list of associated channels
+    :param id: the id of the channel to collect associations from.
+    :param api: the google api object.
+    :return: a list of (associated channel name, associated channel id).
     """
 
-    strainer = bs4.SoupStrainer(RELATED_CHANNELS_ROOT_TAG,
-                                attrs={'id': RELATED_CHANNELS_ROOT_ID_VALUE})
+    if id is None or api is None:
+        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+    try:
+        result = api.channels().list(part='brandingSettings', id=id).execute()
+        if len(result['items']) == 0:
+            raise AttributeError('No channel information found. Please check the channel id '+
+                                'is correct\nchannel id=' + str(id))
+        associate_list = list()
+        channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
+        for channel in channels:
+            associate_list.append( (extract_user_name(channel, api), channel) )
+        return associate_list
 
-    # scrape the tags representing related channels
-    channel_root = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
-
-    if len(channel_root) == 0:
-        raise ValueError("""cannot parse or locate root element of related channels.
-                         Check the url is actually for a featured channels page. """)
-
-    ret_list = list()
-
-    channels = channel_root.find_all(RELATED_CHANNEL_INDIVIDUAL_TAG,
-                                     attrs={'class': RELATED_CHANNEL_CLASS_ATTR_VALUE})
-
-    for channel in channels:
-        if not isinstance(channel, bs4.Tag):
-            continue
-        # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
-        try:
-            element = channel.find(RELATED_CHANNEL_SUBTAG)
-            element_anchor = element.a
-            user_name = element_anchor['title']
-            link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
-                SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
-        except (KeyError, AttributeError):
-            logger.declare_error('Could not parse HTML element on this page, ' +
-                                'may be malformed: ' + str(url))
-            continue
-        listing = (user_name, link)
-        ret_list.append(listing)
-
-    return ret_list
+    except AttributeError as a:
+        if 'has no attribute' in a.message:
+            raise AttributeError('api must be a google api object. Please check the correct' +
+                                 ' object was supplied.')
+        else:
+            raise a
 
 
-def extract_first_user_name(url):
+def extract_user_name(id, api):
     """
-    grab the source user name at the given url
-    :param url: the url to retrieve source user name from.
-    :return: string, the source user name.
+    get the username for a given channel
+    :param id: the id of the channel to collect the user name from.
+    :param api: the google api object.
+    :return: the user name.
     """
-    strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_ANCHOR_ID})
-    # scrape the tag with the user name
-    name_tag = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
-    return name_tag.find(RELATED_CHANNELS_ANCHOR_SOURCE)['title']
+    if id is None or api is None:
+        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+    try:
+        result = api.channels().list(part='brandingSettings', id=id).execute()
+        if len(result['items']) == 0:
+            raise AttributeError('No channel information found. Please check the channel id '+
+                                'is correct\nchannel id=' + str(id))
+        title = result['items'][0]['brandingSettings']['channel']['title']
+        return title
+    except AttributeError as a:
+        if 'has no attribute' in a.message:
+            raise AttributeError('api must be a google api object. Please check the correct' +
+                                 ' object was supplied.')
+        else:
+            raise a
 
 
 def generate_colours(value):
