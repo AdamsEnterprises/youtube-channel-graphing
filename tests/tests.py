@@ -144,8 +144,9 @@ class ArgsParserTestCases(unittest.TestCase):
     def test_args_defaults(self):
 
         expected_defaults = "Namespace(api_key=" + repr(self.TESTING_API_KEY) + \
-                            ", degree=1, filename=None, id=" + repr(self.TESTING_CHANNEL_ARG) + \
-                            ", output='text', show_graph=False, verbose=0)"
+                            ", degree=1, filename=" + repr(main_script.DEFAULT_OUTPUT_FILENAME) \
+                            + ", id=" + repr(self.TESTING_CHANNEL_ARG) + \
+                            ", output=None, show_graph=False, verbose=0)"
 
         parser = main_script.setup_arg_parser()
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY])
@@ -171,8 +172,6 @@ class ArgsParserTestCases(unittest.TestCase):
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-f', filename])
 
         self.assertEqual(response.filename, filename)
-
-        # No null case - as default is null to indicate no recording to file.
 
     def test_args_output(self):
         testing_outputs = ['text', 'graphml', 'gml','gexf','json','yaml']
@@ -204,7 +203,7 @@ class ArgsVerificationTestCases(unittest.TestCase):
     TESTING_EXT = 'out'
     BAD_CHARS = """^&*[]{};:\'\"?/\\><,"""
 
-    def test_verify_args(self):
+    def test_verify_args_general(self):
         parser = main_script.setup_arg_parser()
 
         try:
@@ -241,9 +240,11 @@ class DataOutputTestCases(unittest.TestCase):
 
     MOCK_OUTPUT = "This is mock output.\n"
 
-    MOCK_FILE_OUTPUT = 'graph.out'
+    MOCK_FILE_OUTPUT = 'mockfile.out'
 
     STDOUT_REDIRECTION = 'output_std_file'
+
+    # TODO: gneerate_output will output text to console if no output format specified. otherwise it will output to file in the format specified, default filename if no filename given.
 
     def setUp(self):
         self.old_stdout = sys.stdout
@@ -255,44 +256,46 @@ class DataOutputTestCases(unittest.TestCase):
         sys.stdout = self.old_stdout
 
     def test_graph_conversion_to_text(self):
-        output = main_script.convert_graph_to_text(self.MOCK_GRAPH)
-        output.sort()
+        main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        with open(self.MOCK_FILE_OUTPUT) as f:
+            output = f.read()
         expected = "1 2\n2 3\n"
         for index in range(len(output)):
             self.assertEqual(output[index], expected[index])
 
     def test_graph_conversion_to_graphml(self):
-        output = main_script.convert_graph_to_graphml(self.MOCK_GRAPH)
-        result_graph = nx.read_graphml(main_script.TMP_FILENAME)
+        main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_gml(self):
-        output = main_script.convert_graph_to_gml(self.MOCK_GRAPH)
-        result_graph = nx.parse_gml(output)
+        main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_json(self):
-        output = main_script.convert_graph_to_json(self.MOCK_GRAPH)
-        json_data = json.load(output)
-        result_graph = json_graph.tree_graph(json_data)
+        main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        with open(self.MOCK_FILE_OUTPUT) as f:
+            json_data = json.load(f.read())
+            result_graph = json_graph.tree_graph(json_data)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_gexf(self):
-        output = main_script.convert_graph_to_gefx(self.MOCK_GRAPH)
-        result_graph = nx.read_gexf(main_script.TMP_FILENAME)
+        main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
     def test_graph_conversion_to_yaml(self):
-        output = main_script.convert_graph_to_yaml(self.MOCK_GRAPH)
-        result_graph = nx.read_yaml(main_script.TMP_FILENAME)
+        main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
         self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
         self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
 
-    def test_data_outputting(self):
+    def test_output(self):
         main_script.generate_output(self.MOCK_FILE_OUTPUT, self.MOCK_OUTPUT)
         self.assertTrue(os.path.exists(self.MOCK_FILE_OUTPUT))
         with open(self.MOCK_FILE_OUTPUT) as f:
@@ -302,6 +305,8 @@ class DataOutputTestCases(unittest.TestCase):
         sys.stdout.flush()
         with open(self.STDOUT_REDIRECTION) as f:
             self.assertEqual(f.read(), self.MOCK_OUTPUT)
+
+    # def test_
 
 
 if __name__ == '__main__':

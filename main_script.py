@@ -5,6 +5,8 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 __author__ = 'Roland'
 
+# TODO: change output arguments, if no output argument then no record to file and show only adjacency list to console, otherwise write formatted output to file.
+
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
 
@@ -13,12 +15,14 @@ import random
 import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 import argparse
+import json
 
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 
 
 import networkx
+from networkx.readwrite import json_graph
 import matplotlib.pyplot as plt
 
 random.seed(-1)
@@ -30,6 +34,8 @@ DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
 API_YOUTUBE_SERVICE = 'youtube'
 API_VERSION = 'v3'
 
+TEMP_FILENAME = '!__temp__'
+DEFAULT_OUTPUT_FILENAME = 'graph.out'
 
 def prepare_logger(verbosity):
     """
@@ -129,9 +135,10 @@ def setup_arg_parser():
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
+                        default=DEFAULT_OUTPUT_FILENAME,
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
-    parser.add_argument('-o', '--output', action='store', type=str, default='text',
+    parser.add_argument('-o', '--output', action='store', type=str, default=None,
                         choices=['text', 'graphml', 'gml','gexf','json','yaml'],
                         help="""Format to convert the graph data into. Valid choices are:
                         text (default) - tab formatted text listing edges and related nodes.
@@ -217,7 +224,6 @@ def create_youtube_api(developerKey=None):
         raise HttpError('Error: developerKey cannot be null.')
     api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
                           developerKey=developerKey)
-    # test api
     return api
 
 
@@ -396,35 +402,81 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, logger):
     return graph_nodes
 
 
-def convert_graph_to_text(graph):
+def convert_graph_to_text(graph, filename):
     """
-    given a graph object, render to text the edges in the graph
+    given a graph object, write a file containing the adjacency list.
     this is the minimum data required to reconstruct the graph.
-    :param graph: the graph object to get edges from
-    :return: a list of edges
+    :param graph: the graph object to get the list from.
+    :param filename: the name of the file to write to.
+    :return:
     """
-    text = ""
-    for edge in graph.edges():
-        string = str(edge).split("'")[1:-1]
-        text += string[0] + ', ' + string[2] + '\n'
-    return text
+    networkx.write_adjlist(graph, filename)
+    return
 
 
-def convert_graph_to_xml(graph):
+def convert_graph_to_graphml(graph, filename):
     """
-    convert from a networkX graph object, to a graphml formatted xml string.
-    :param graph: the networkX graph object
-    :return: the xml describing the graph, in graphml format.
+    convert from a networkX graph object, to graphml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
     """
-    tree = graphml.make_base_xml()
+    networkx.write_graphml(graph, filename, prettyprint=True)
+    return
+
+
+def convert_graph_to_gml(graph, filename):
+    """
+    convert from a networkX graph object, to gml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gml(graph, filename)
+    return
+
+
+def convert_graph_to_gexf(graph, filename):
+    """
+    convert from a networkX graph object, to gefx format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gexf(graph, filename)
+    return
+
+
+def convert_graph_to_yaml(graph, filename):
+    """
+    convert from a networkX graph object, to yaml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_yaml(graph, filename)
+    return
+
+
+def convert_graph_to_json(graph, filename):
+    """
+    convert from a networkX graph object, to serialized json format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gml(graph, filename)
+    # find the lowest degree node
+    # store [node_name, degree] and compare for the lowest degree
+    root_node = [graph.nodes()[0], graph.node[graph.nodes()[0]]['degree']]
     for node in graph.nodes():
-        graphml.make_node(tree, node, **graph.node[node])
-    for edge in graph.edges():
-        graphml.make_edge(tree, edge[0], edge[1], **graph.edge[edge[0]][edge[1]])
-    return graphml.build_xml_string(tree)
-
-
-# def convert_graph_to_text(graph):
+        if graph.node[node]['degree'] < root_node[1]:
+            root_node = [node, graph.node[node]['degree']]
+            break
+    data = json_graph.tree_data(graph, root=root_node[0])
+    with open(filename, 'w') as f:
+        f.write(json.dumps(data))
+    return
 
 
 def generate_file(filename, text):
