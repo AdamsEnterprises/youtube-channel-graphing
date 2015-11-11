@@ -120,9 +120,11 @@ def setup_arg_parser():
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
-    parser.add_argument('url', action='store', type=str,
-                        help="A url to a listing of featured channels. This is treated" +
-                             " as the initial Youtube user.")
+    parser.add_argument('id', action='store', type=str,
+                        help="A youtube channel id. The referenced channel is treated as the" +
+                        " initial user.")
+    parser.add_argument('api_key', action='store', type=str,
+                        help="The api key with which to access the youtube API.")
     parser.add_argument('-d', '--degree', action='store', type=int, default=1,
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
@@ -130,7 +132,7 @@ def setup_arg_parser():
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
     parser.add_argument('-o', '--output', action='store', type=str, default='text',
-                        choices=['text', 'graphml'],
+                        choices=['text', 'graphml', 'gml','gexf','json','yaml'],
                         help="""Format to convert the graph data into. Valid choices are:
                         text (default) - tab formatted text listing edges and related nodes.
                         graphml - xml formatted according to graphml specifications.

@@ -143,8 +143,8 @@ class ArgsParserTestCases(unittest.TestCase):
 
     def test_args_defaults(self):
 
-        expected_defaults = "Namespace(api_key=" + repr(self.TESTING_CHANNEL_ARG) + \
-                            ", degree=1, filename=None, id=" + self.TESTING_API_KEY + \
+        expected_defaults = "Namespace(api_key=" + repr(self.TESTING_API_KEY) + \
+                            ", degree=1, filename=None, id=" + repr(self.TESTING_CHANNEL_ARG) + \
                             ", output='text', show_graph=False, verbose=0)"
 
         parser = main_script.setup_arg_parser()
@@ -189,8 +189,8 @@ class ArgsParserTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
-                                          self.TESTING_API_KEY, '-v', option])
-            self.assertEqual(response.verbose, option)
+                                          self.TESTING_API_KEY, '-v', str(option)])
+            self.assertEqual(int(response.verbose), option)
 
 
 class ArgsVerificationTestCases(unittest.TestCase):
