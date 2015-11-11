@@ -219,12 +219,12 @@ class ArgsVerificationTestCases(unittest.TestCase):
                                                          + '.' + self.TESTING_EXT + '.'])
             args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                          '-d', '99999', '-f', self.TESTING_FILENAME])
-        except Exception:
-            self.fail()
+        except AssertionError as e:
+            self.fail(str(e.message))
 
-        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                   '-d', '0', '-f', self.TESTING_FILENAME])
-        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                   '-d', '-1', '-f', self.TESTING_FILENAME])
         for char in self.BAD_CHARS:
             self.assertRaises(Exception, main_script.verify_arguments,

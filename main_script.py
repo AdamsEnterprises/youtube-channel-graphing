@@ -161,30 +161,39 @@ def verify_arguments(parser, args):
     """
 
     def _assert_valid_filename():
+        # arguments is from outer scope
         try:
             # check if filename is valid
             if arguments.filename is not None:
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
-            raise ValueError("""filename contains invalid symbols. Please
-                             see the help section for more information.""")
+            raise AttributeError("filename contains invalid symbols: \"\\|/?,<>:;'{[}]*&^%")
 
-    def _assert_valid_channel_url():
-        # check correct youtube url for featured channels
-        assert ('/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS)
-        temp = url.rsplit('/', 2)[0]
-        # expecting origin url in user format.
-        assert temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER)
-        # don't check params - just replace them with the correct ones, which we already know
-        if ('?' + params) != SUBURL_CHANNEL_PARAMS:
-            arguments.url = url + SUBURL_CHANNEL_PARAMS
-        # fully check that this url actually works
-        name = extract_first_user_name(arguments.url)
-        # should raise ValueError if cannot parse associates.
-        get_association_list(arguments.url)
-        if len(name) == 0:
-            raise AssertionError
+    def _assert_valid_degree():
+        # arguments is from outer scope
+        try:
+            deg = int(arguments.degree)
+            assert deg > 0
+        except (AssertionError, ValueError):
+            raise AttributeError("Degree should be a positive integer.")
+
+    def _assert_valid_channel_id():
+        # arguments is from outer scope
+        try:
+            # check for malformed urls
+            assert arguments.id is not None
+            assert len(arguments.id) > 0
+            temp_api = create_youtube_api(developerKey=arguments.api_key)
+            response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
+            # check this is the correct kind of response
+            assert 'kind' in response
+            assert response['kind'] == 'youtube#channelListResponse'
+            # check the response is from a real channel
+            assert 'items' in response
+            assert len(response['items']) > 0
+        except AssertionError:
+            raise AttributeError("Could not verify the channel id. Please check this id is correct.")
 
     if args is None:
         arguments = parser.parse_args()
@@ -192,19 +201,8 @@ def verify_arguments(parser, args):
         arguments = parser.parse_args(args)
 
     _assert_valid_filename()
-
-    try:
-        # check for malformed urls
-        assert arguments.url is not None
-        assert len(arguments.url) > 0
-        try:
-            url, params = arguments.url.split('?')
-        except ValueError:
-            url = arguments.url
-            params = ''
-        _assert_valid_channel_url()
-    except AssertionError:
-        raise ValueError("the URL supplied is not a valid youtube featured channels url.")
+    _assert_valid_degree()
+    _assert_valid_channel_id()
 
     return arguments
 
