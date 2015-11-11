@@ -16,6 +16,10 @@ except AttributeError:
     #pylint: disable=no-member
     from urllib import request as urlManager
 
+
+from logging import getLogger, StreamHandler, Formatter
+from logging import ERROR, INFO
+
 import itertools
 import random
 import multiprocessing
@@ -23,55 +27,94 @@ import multiprocessing
 import argparse
 
 import networkx
-import bs4
 import matplotlib.pyplot as plt
-
-from submodules import graphml, logger
 
 random.seed(-1)
 
-# TODO: switch from web scraping to Youtube API
 
-# url      <url to featured channel list>
-#           test:   url actually leads to valid featured channel webpage
-#           test:   url is no null
-#
-# [-d --degrees]    <degrees of separation>
-#           ( if not specified, assume 1 degree.)
-#           test: degrees is not null
-#           test: degrees is an integer greater than 0.
-# [-f -filename]    <file to write output graph data into>
-#           test:   filename is not null
-#           test:   filename is valid for underlying system.
-#           test:   produced file is not empty
-#           test:   produced file has expected nodes and edges
-# [-v --verbosity]  <display info logging to console>
-#                   (default - 0: off)
-#                   (0: off)
-#                   (1: warnings, errors only)
-#                   (2: current degree and number of users processed...)
-#                   (3: new nodes, new edges)
-#                   (4: date and time of message)
-#           test:   verbosity level gives correct format response
-#           (need to capture logging messages for comparison)
-# [-s --show_graph]
-#                   show a visual depiction of the resultant graph.
-# [-h --help]   <help information on options>
-#           test: expected output produced.
+GENERAL_MESSAGE = '%(message)s'
+DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
 
 
-# important constants, for web scraping
-URL_YOUTUBE_CHANNEL_ROOT = u'https://www.youtube.com'
-SUBURL_YOUTUBE_USER = u'/user'
-SUBURL_YOUTUBE_CHANNELS = u'/channels'
-SUBURL_CHANNEL_PARAMS = u'?view=60'
-RELATED_CHANNEL_INDIVIDUAL_TAG = 'li'
-RELATED_CHANNEL_CLASS_ATTR_VALUE = 'channels-content-item yt-shelf-grid-item'
-RELATED_CHANNEL_SUBTAG = 'h3'
-RELATED_CHANNELS_ANCHOR_ID = 'c4-primary-header-contents'
-RELATED_CHANNELS_ANCHOR_SOURCE = 'a'
-RELATED_CHANNELS_ROOT_TAG = 'ul'
-RELATED_CHANNELS_ROOT_ID_VALUE = 'browse-items-primary'
+def prepare_logger(verbosity):
+    """
+    setup the logger
+    :param verbosity: determines how much information the logger is to show
+    :return:
+    """
+    if verbosity == 0:
+        return None
+    else:
+        logger = getLogger('youtube_user_graph')
+        logger.verbosity = verbosity
+        if verbosity == 1:
+            logger.setLevel(ERROR)
+            formatter = Formatter(GENERAL_MESSAGE)
+        else:
+            logger.setLevel(INFO)
+            if verbosity >= 4:
+                formatter = Formatter(DETAILED_MESSAGE)
+            else:
+                formatter = Formatter(GENERAL_MESSAGE)
+        console_handler = StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+    return logger
+
+
+def declare_error(logger, message):
+    """
+    makes the logger show an error message
+    :param message: the error message to show
+    :return:
+    """
+    if logger is not None:
+        logger.error(message)
+
+
+def declare_degree(logger, degree):
+    """
+    make logger show the current degree
+    :param degree: the degree to show
+    :return:
+    """
+    if logger is not None:
+        if logger.verbosity >= 2:
+            logger.info('Degree: #{}'.format(degree))
+
+
+def declare_processed_users(logger, user_count):
+    """
+    make logger show the number of processed users
+    :param user_count: how many users have been processed.
+    :return:
+    """
+    if logger is not None:
+        if logger.verbosity >= 2:
+            logger.info('Users Processed: {}'.format(user_count))
+
+
+def declare_new_node(logger, node):
+    """
+    make logger show that a new node has been added
+    :param node: the new node
+    :return:
+    """
+    if logger is not None:
+        if logger.verbosity >= 3:
+            logger.info('New Node: {}'.format(node))
+
+
+def declare_new_edge(logger, edge_start, edge_end):
+    """
+    make logger show that a new edge has been added
+    :param edge_start: the first node in the edge
+    :param edge_end: the last node in the edge
+    :return:
+    """
+    if logger is not None:
+        if logger.verbosity >= 3:
+            logger.info('New Edge: {} to {}'.format(edge_start, edge_end))
 
 
 def setup_arg_parser():
@@ -79,9 +122,6 @@ def setup_arg_parser():
     prepare and set up the argumentParser for this script
     :return: the argumentParser
     """
-
-    # TODO: add options for different output data formats
-
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
@@ -272,7 +312,7 @@ def generate_colours(value):
     return color_list
 
 
-def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
+def generate_relationship_graph(graph_nodes, max_degree, first_user, logger):
     """
     creates a graphing object representing you tube users and associations.
     :param graph_nodes: the object storing the graph nodes and edges.
@@ -292,7 +332,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
             queue.put(user)
         return
 
-    def _process_colleague(origin, current_user, current_degree, user_graph, verbosity):
+    def _process_colleague(origin, current_user, current_degree, user_graph, logger):
         """
         add a colleague to the nodes and edges as needed. enlist the colleague if not already
         processed.
@@ -303,11 +343,11 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
         """
         if not user_graph.has_node(current_user):
             user_graph.add_node(current_user, degree=current_degree)
-            logger.declare_new_node(current_user)
+            declare_new_node(logger, current_user)
         if not user_graph.has_edge(origin, current_user) or \
                 user_graph.has_edge(current_user, origin):
             user_graph.add_edge(origin, current_user)
-            logger.declare_new_edge(origin, current_user)
+            declare_new_edge(logger, origin, current_user)
         return
 
     # pylint: disable=maybe-no-member
@@ -318,7 +358,7 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
     degree = 1
 
     while degree <= max_degree:
-        logger.declare_degree(degree)
+        declare_degree(logger, degree)
 
         _queue_next_users__to_do(users_to_do, user_queue)
 
@@ -334,14 +374,14 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, verbosity):
             associations = get_association_list(url)
             for colleague in associations:
                 colleague_name, _ = colleague
-                _process_colleague(user_name, colleague_name, degree, graph_nodes, verbosity)
+                _process_colleague(user_name, colleague_name, degree, graph_nodes, logger)
                 if degree < max_degree \
                         and colleague not in users_processed \
                         and colleague not in users_to_do:
                     users_to_do.append(colleague)
 
             users_processed.append((user_name, url))
-            logger.declare_processed_users(len(users_processed))
+            declare_processed_users(logger, len(users_processed))
 
         degree += 1
     return graph_nodes
@@ -391,7 +431,7 @@ def main_function():
 
     parser = setup_arg_parser()
     arguments = verify_arguments(parser, None)
-    logger.prepare_logger(arguments.verbose)
+    logger = prepare_logger(arguments.verbose)
     first_user = (extract_first_user_name(arguments.url), arguments.url)
     max_degree = arguments.degree
 
