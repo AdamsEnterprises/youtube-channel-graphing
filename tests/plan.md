@@ -22,13 +22,6 @@ Testing is to be conducted using a test script.
 ## API
 
 See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
-
-- API creation
-    Given the api-key, generate an api object to interface with the youtube api.
-    
-    * good key
-    * bad key
-    * null
     
 - User Name extraction
     Given a URL to a youtube channel, extract the channel name or user name.
@@ -118,4 +111,4 @@ See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
 
 - bad choices for verbosity or output formats - the arg parser will do this itself.
 
-- 
+- creation and validation of google api objects - outside of scope.

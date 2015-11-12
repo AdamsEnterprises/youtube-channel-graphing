@@ -15,7 +15,8 @@ import networkx as nx
 from networkx import Graph
 from networkx.readwrite import json_graph
 
-from apiclient import discovery
+from googleapiclient import discovery
+from googleapiclient.errors import HttpError
 
 import main_script
 
@@ -79,15 +80,6 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
     def _youtube_api(self):
         return discovery.build(developerKey=self.API_KEY, serviceName='youtube', version='v3')
 
-    def test_api_creation(self):
-        try:
-            api = main_script.create_youtube_api(developerKey=self.API_KEY)
-        except Exception:
-            self.fail()
-
-        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=self.INVALID_CODE)
-        self.assertRaises(ValueError, main_script.create_youtube_api, developerKey=None)
-
     def test_collect_associations(self):
         """
         test an expected set of associations is created,
@@ -95,8 +87,9 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        # TODO: complete the list of comparison ids.
-        testing_target_ids = []
+        testing_target_ids = ['HBO','Cinemax','HBOBoxing','HBODocs',
+                              'Real Time with Bill Maher','GameofThrones','trueblood',
+                              'HBOLatino']
 
         # sort the target_list
         testing_target_ids.sort()
@@ -104,8 +97,8 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         try:
             api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
-            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api=api)
-        except Exception:
+            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api)
+        except (HttpError, ValueError):
             self.fail()
 
         # sort the results
@@ -115,16 +108,20 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
-            self.assertEqual(results[i], testing_target_ids[i])
+            self.assertEqual(results[i][0], testing_target_ids[i])
 
-        self.assertRaises(ValueError, main_script.get_association_list, None, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=None)
-        self.assertRaises(ValueError, main_script.get_association_list, None, api=None)
-        self.assertRaises(ValueError, main_script.get_association_list, self.INVALID_CODE, api=api)
-        self.assertRaises(ValueError, main_script.get_association_list, self.TESTING_CHANNEL_ID, api=non_api)
+        self.assertRaises(AttributeError, main_script.get_association_list, None, api)
+        self.assertRaises(AttributeError, main_script.get_association_list,
+                          self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(AttributeError, main_script.get_association_list, None, None)
+        self.assertRaises(AttributeError, main_script.get_association_list, self.INVALID_CODE, api)
+        self.assertRaises(AttributeError, main_script.get_association_list,
+                          self.TESTING_CHANNEL_ID, non_api)
 
     def test_extract_user_name(self):
-
+        """
+        test that extract_user_name collects the user_name from a channel id with an api object.
+        """
         testing_target_username = "LastWeekTonight"
         api=self._youtube_api()
         non_api = discovery.RawModel()      # object that is not actually an api.
@@ -146,9 +143,10 @@ class ArgsParserTestCases(unittest.TestCase):
 
     def test_args_defaults(self):
 
-        expected_defaults = "Namespace(api_key=" + repr(self.TESTING_CHANNEL_ARG) + \
-                            ", degree=1, filename=None, id=" + self.TESTING_API_KEY + \
-                            ", output='text', show_graph=False, verbose=0)"
+        expected_defaults = "Namespace(api_key=" + repr(self.TESTING_API_KEY) + \
+                            ", degree=1, filename=" + repr(main_script.DEFAULT_OUTPUT_FILENAME) \
+                            + ", id=" + repr(self.TESTING_CHANNEL_ARG) + \
+                            ", output=None, show_graph=False, verbose=0)"
 
         parser = main_script.setup_arg_parser()
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY])
@@ -175,10 +173,8 @@ class ArgsParserTestCases(unittest.TestCase):
 
         self.assertEqual(response.filename, filename)
 
-        # No null case - as default is null to indicate no recording to file.
-
     def test_args_output(self):
-        testing_outputs = ['text', 'graphml', 'gml','gexf','json','yaml']
+        testing_outputs = ['text', 'graphml', 'gml','gexf','yaml']
         parser = main_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -192,8 +188,8 @@ class ArgsParserTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
-                                          self.TESTING_API_KEY, '-v', option])
-            self.assertEqual(response.verbose, option)
+                                          self.TESTING_API_KEY, '-v', str(option)])
+            self.assertEqual(int(response.verbose), option)
 
 
 class ArgsVerificationTestCases(unittest.TestCase):
@@ -207,7 +203,7 @@ class ArgsVerificationTestCases(unittest.TestCase):
     TESTING_EXT = 'out'
     BAD_CHARS = """^&*[]{};:\'\"?/\\><,"""
 
-    def test_verify_args(self):
+    def test_verify_args_general(self):
         parser = main_script.setup_arg_parser()
 
         try:
@@ -222,12 +218,12 @@ class ArgsVerificationTestCases(unittest.TestCase):
                                                          + '.' + self.TESTING_EXT + '.'])
             args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                          '-d', '99999', '-f', self.TESTING_FILENAME])
-        except Exception:
-            self.fail()
+        except AssertionError as e:
+            self.fail(str(e.message))
 
-        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                   '-d', '0', '-f', self.TESTING_FILENAME])
-        self.assertRaises(Exception, main_script.verify_arguments, [self.TESTING_CHANNEL_ID, self.API_KEY,
+        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                                   '-d', '-1', '-f', self.TESTING_FILENAME])
         for char in self.BAD_CHARS:
             self.assertRaises(Exception, main_script.verify_arguments,
@@ -239,12 +235,16 @@ class DataOutputTestCases(unittest.TestCase):
 
     MOCK_GRAPH = Graph()
     MOCK_GRAPH.add_node('1', degree=0)
+    MOCK_GRAPH.add_node('2', degree=1)
+    MOCK_GRAPH.add_node('3', degree=2)
+    MOCK_GRAPH.add_node('4', degree=1)
     MOCK_GRAPH.add_edge('1','2')
     MOCK_GRAPH.add_edge('2','3')
+    MOCK_GRAPH.add_edge('1','4')
 
     MOCK_OUTPUT = "This is mock output.\n"
 
-    MOCK_FILE_OUTPUT = 'graph.out'
+    MOCK_FILE_OUTPUT = 'mockfile.out'
 
     STDOUT_REDIRECTION = 'output_std_file'
 
@@ -258,54 +258,134 @@ class DataOutputTestCases(unittest.TestCase):
         sys.stdout = self.old_stdout
 
     def test_graph_conversion_to_text(self):
-        output = main_script.convert_graph_to_text(self.MOCK_GRAPH)
-        output.sort()
-        expected = "1 2\n2 3\n"
-        for index in range(len(output)):
-            self.assertEqual(output[index], expected[index])
+        main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        with open(self.MOCK_FILE_OUTPUT) as f:
+            output = f.read()
+            output = output.split('\n')
+        result_graph = nx.parse_adjlist(output)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_graphml(self):
-        output = main_script.convert_graph_to_graphml(self.MOCK_GRAPH)
-        result_graph = nx.read_graphml(main_script.TMP_FILENAME)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_gml(self):
-        output = main_script.convert_graph_to_gml(self.MOCK_GRAPH)
-        result_graph = nx.parse_gml(output)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_json(self):
-        output = main_script.convert_graph_to_json(self.MOCK_GRAPH)
-        json_data = json.load(output)
-        result_graph = json_graph.tree_graph(json_data)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        self.skipTest('Requires directed Graphs, which are outside the scope of the project.')
+        main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        with open(self.MOCK_FILE_OUTPUT) as f:
+            json_data = json.load(f.read())
+            result_graph = json_graph.tree_graph(json_data)
+        result_nodes = result_graph.nodes()
+        result_edges = result_graph.edges()
+        original_nodes = self.MOCK_GRAPH.nodes()
+        original_edges = self.MOCK_GRAPH.edges()
+        result_edges.sort()
+        result_nodes.sort()
+        original_edges.sort()
+        original_nodes.sort()
+        self.assertEqual(original_nodes, result_nodes)
+        self.assertEqual(original_edges, result_edges)
 
     def test_graph_conversion_to_gexf(self):
-        output = main_script.convert_graph_to_gefx(self.MOCK_GRAPH)
-        result_graph = nx.read_gexf(main_script.TMP_FILENAME)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_yaml(self):
-        output = main_script.convert_graph_to_yaml(self.MOCK_GRAPH)
-        result_graph = nx.read_yaml(main_script.TMP_FILENAME)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
-    def test_data_outputting(self):
-        main_script.generate_output(self.MOCK_FILE_OUTPUT, self.MOCK_OUTPUT)
-        self.assertTrue(os.path.exists(self.MOCK_FILE_OUTPUT))
-        with open(self.MOCK_FILE_OUTPUT) as f:
-            self.assertEqual(f.read(), self.MOCK_OUTPUT)
+    def test_output(self):
+        CUSTOM_FILENAME = 'custom.out'
 
-        main_script.generate_output(None, self.MOCK_OUTPUT)
-        sys.stdout.flush()
-        with open(self.STDOUT_REDIRECTION) as f:
-            self.assertEqual(f.read(), self.MOCK_OUTPUT)
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
+            self.assertFalse(os.path.exists(self.MOCK_FILE_OUTPUT))
+        except AttributeError:
+            self.fail()
 
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', self.MOCK_FILE_OUTPUT)
+            result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
+            for node in self.MOCK_GRAPH.nodes():
+                self.assertIn(node, result_graph.nodes())
+            for edge in self.MOCK_GRAPH.edges():
+                try:
+                    self.assertIn(edge, result_graph.edges())
+                except AssertionError:
+                    edge = (edge[1], edge[0])
+                    self.assertIn(edge, result_graph.edges())
+                    continue
+        except AttributeError:
+            self.fail()
+
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', CUSTOM_FILENAME)
+            result_graph = nx.read_gml(CUSTOM_FILENAME)
+            for node in self.MOCK_GRAPH.nodes():
+                self.assertIn(node, result_graph.nodes())
+            for edge in self.MOCK_GRAPH.edges():
+                try:
+                    self.assertIn(edge, result_graph.edges())
+                except AssertionError:
+                    edge = (edge[1], edge[0])
+                    self.assertIn(edge, result_graph.edges())
+                    continue
+        except AttributeError:
+            self.fail()
+
+        self.assertRaises(AttributeError, main_script.generate_output,
+                          self.MOCK_GRAPH, 'fake_format', CUSTOM_FILENAME)
+
+        if os.path.exists(CUSTOM_FILENAME):
+            os.remove(CUSTOM_FILENAME)
 
 if __name__ == '__main__':
     nose.run()

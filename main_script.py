@@ -5,17 +5,7 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 __author__ = 'Roland'
 
-
-
-import urllib as urlManager
-
-try:
-    # pylint: disable=no-member
-    urlManager.urlopen
-except AttributeError:
-    #pylint: disable=no-member
-    from urllib import request as urlManager
-
+# TODO: change output arguments, if no output argument then no record to file and show only adjacency list to console, otherwise write formatted output to file.
 
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
@@ -25,8 +15,14 @@ import random
 import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 import argparse
+import json
+
+from googleapiclient import discovery
+from googleapiclient.errors import HttpError
+
 
 import networkx
+from networkx.readwrite import json_graph
 import matplotlib.pyplot as plt
 
 random.seed(-1)
@@ -35,6 +31,13 @@ random.seed(-1)
 GENERAL_MESSAGE = '%(message)s'
 DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
 
+API_YOUTUBE_SERVICE = 'youtube'
+API_VERSION = 'v3'
+
+TEMP_FILENAME = '!__temp__'
+DEFAULT_OUTPUT_FILENAME = 'graph.out'
+
+OUTPUT_FORMATS = ['text', 'graphml', 'gml','gexf','yaml']
 
 def prepare_logger(verbosity):
     """
@@ -125,17 +128,20 @@ def setup_arg_parser():
     parser = argparse.ArgumentParser(description="""Collect and/or show graphing data upon a
                                                  Youtube user and their relationships to other
                                                  users.""")
-    parser.add_argument('url', action='store', type=str,
-                        help="A url to a listing of featured channels. This is treated" +
-                             " as the initial Youtube user.")
+    parser.add_argument('id', action='store', type=str,
+                        help="A youtube channel id. The referenced channel is treated as the" +
+                        " initial user.")
+    parser.add_argument('api_key', action='store', type=str,
+                        help="The api key with which to access the youtube API.")
     parser.add_argument('-d', '--degree', action='store', type=int, default=1,
                         help="The degree of separation to process to. Must be an integer" +
                              " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
+                        default=DEFAULT_OUTPUT_FILENAME,
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
-    parser.add_argument('-o', '--output', action='store', type=str, default='text',
-                        choices=['text', 'graphml'],
+    parser.add_argument('-o', '--output', action='store', type=str, default=None,
+                        choices=OUTPUT_FORMATS,
                         help="""Format to convert the graph data into. Valid choices are:
                         text (default) - tab formatted text listing edges and related nodes.
                         graphml - xml formatted according to graphml specifications.
@@ -164,30 +170,39 @@ def verify_arguments(parser, args):
     """
 
     def _assert_valid_filename():
+        # arguments is from outer scope
         try:
             # check if filename is valid
             if arguments.filename is not None:
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
-            raise ValueError("""filename contains invalid symbols. Please
-                             see the help section for more information.""")
+            raise AttributeError("filename contains invalid symbols: \"\\|/?,<>:;'{[}]*&^%")
 
-    def _assert_valid_channel_url():
-        # check correct youtube url for featured channels
-        assert ('/' + url.split('/')[-1]) == str(SUBURL_YOUTUBE_CHANNELS)
-        temp = url.rsplit('/', 2)[0]
-        # expecting origin url in user format.
-        assert temp == str(URL_YOUTUBE_CHANNEL_ROOT + SUBURL_YOUTUBE_USER)
-        # don't check params - just replace them with the correct ones, which we already know
-        if ('?' + params) != SUBURL_CHANNEL_PARAMS:
-            arguments.url = url + SUBURL_CHANNEL_PARAMS
-        # fully check that this url actually works
-        name = extract_first_user_name(arguments.url)
-        # should raise ValueError if cannot parse associates.
-        get_association_list(arguments.url)
-        if len(name) == 0:
-            raise AssertionError
+    def _assert_valid_degree():
+        # arguments is from outer scope
+        try:
+            deg = int(arguments.degree)
+            assert deg > 0
+        except (AssertionError, ValueError):
+            raise AttributeError("Degree should be a positive integer.")
+
+    def _assert_valid_channel_id():
+        # arguments is from outer scope
+        try:
+            # check for malformed urls
+            assert arguments.id is not None
+            assert len(arguments.id) > 0
+            temp_api = create_youtube_api(developerKey=arguments.api_key)
+            response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
+            # check this is the correct kind of response
+            assert 'kind' in response
+            assert response['kind'] == 'youtube#channelListResponse'
+            # check the response is from a real channel
+            assert 'items' in response
+            assert len(response['items']) > 0
+        except AssertionError:
+            raise AttributeError("Could not verify the channel id. Please check this id is correct.")
 
     if args is None:
         arguments = parser.parse_args()
@@ -195,75 +210,77 @@ def verify_arguments(parser, args):
         arguments = parser.parse_args(args)
 
     _assert_valid_filename()
-
-    try:
-        # check for malformed urls
-        assert arguments.url is not None
-        assert len(arguments.url) > 0
-        try:
-            url, params = arguments.url.split('?')
-        except ValueError:
-            url = arguments.url
-            params = ''
-        _assert_valid_channel_url()
-    except AssertionError:
-        raise ValueError("the URL supplied is not a valid youtube featured channels url.")
+    _assert_valid_degree()
+    _assert_valid_channel_id()
 
     return arguments
 
 
-def get_association_list(url):
+def create_youtube_api(developerKey=None):
     """
-    grab the webpage at the given url
-    :param url: the url to retrieve associated channels from.
-    :return: a list of (user name, associated channel url).
+    generate an api object for interfacing with the google youtube api.
+    :param developerKey:
+    :return:
+    """
+    if developerKey is None:
+        raise HttpError('Error: developerKey cannot be null.')
+    api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
+                          developerKey=developerKey)
+    return api
+
+
+
+def get_association_list(id, api):
+    """
+    grab a list of associated channels
+    :param id: the id of the channel to collect associations from.
+    :param api: the google api object.
+    :return: a list of (associated channel name, associated channel id).
     """
 
-    strainer = bs4.SoupStrainer(RELATED_CHANNELS_ROOT_TAG,
-                                attrs={'id': RELATED_CHANNELS_ROOT_ID_VALUE})
+    if id is None or api is None:
+        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+    try:
+        result = api.channels().list(part='brandingSettings', id=id).execute()
+        if len(result['items']) == 0:
+            raise AttributeError('No channel information found. Please check the channel id '+
+                                'is correct\nchannel id=' + str(id))
+        associate_list = list()
+        channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
+        for channel in channels:
+            associate_list.append( (extract_user_name(channel, api), channel) )
+        return associate_list
 
-    # scrape the tags representing related channels
-    channel_root = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
-
-    if len(channel_root) == 0:
-        raise ValueError("""cannot parse or locate root element of related channels.
-                         Check the url is actually for a featured channels page. """)
-
-    ret_list = list()
-
-    channels = channel_root.find_all(RELATED_CHANNEL_INDIVIDUAL_TAG,
-                                     attrs={'class': RELATED_CHANNEL_CLASS_ATTR_VALUE})
-
-    for channel in channels:
-        if not isinstance(channel, bs4.Tag):
-            continue
-        # channel name is text in form "<name> <delimiter> Channel", we want only <name>.
-        try:
-            element = channel.find(RELATED_CHANNEL_SUBTAG)
-            element_anchor = element.a
-            user_name = element_anchor['title']
-            link = URL_YOUTUBE_CHANNEL_ROOT + element_anchor['href'] + \
-                SUBURL_YOUTUBE_CHANNELS + SUBURL_CHANNEL_PARAMS
-        except (KeyError, AttributeError):
-            logger.declare_error('Could not parse HTML element on this page, ' +
-                                'may be malformed: ' + str(url))
-            continue
-        listing = (user_name, link)
-        ret_list.append(listing)
-
-    return ret_list
+    except AttributeError as a:
+        if 'has no attribute' in a.message:
+            raise AttributeError('api must be a google api object. Please check the correct' +
+                                 ' object was supplied.')
+        else:
+            raise a
 
 
-def extract_first_user_name(url):
+def extract_user_name(id, api):
     """
-    grab the source user name at the given url
-    :param url: the url to retrieve source user name from.
-    :return: string, the source user name.
+    get the username for a given channel
+    :param id: the id of the channel to collect the user name from.
+    :param api: the google api object.
+    :return: the user name.
     """
-    strainer = bs4.SoupStrainer(attrs={'id': RELATED_CHANNELS_ANCHOR_ID})
-    # scrape the tag with the user name
-    name_tag = bs4.BeautifulSoup(urlManager.urlopen(url), 'html.parser', parse_only=strainer)
-    return name_tag.find(RELATED_CHANNELS_ANCHOR_SOURCE)['title']
+    if id is None or api is None:
+        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+    try:
+        result = api.channels().list(part='brandingSettings', id=id).execute()
+        if len(result['items']) == 0:
+            raise AttributeError('No channel information found. Please check the channel id '+
+                                'is correct\nchannel id=' + str(id))
+        title = result['items'][0]['brandingSettings']['channel']['title']
+        return title
+    except AttributeError as a:
+        if 'has no attribute' in a.message:
+            raise AttributeError('api must be a google api object. Please check the correct' +
+                                 ' object was supplied.')
+        else:
+            raise a
 
 
 def generate_colours(value):
@@ -387,40 +404,119 @@ def generate_relationship_graph(graph_nodes, max_degree, first_user, logger):
     return graph_nodes
 
 
-def convert_graph_to_text(graph):
+def convert_graph_to_text(graph, filename):
     """
-    given a graph object, render to text the edges in the graph
+    given a graph object, write a file containing the adjacency list.
     this is the minimum data required to reconstruct the graph.
-    :param graph: the graph object to get edges from
-    :return: a list of edges
+    :param graph: the graph object to get the list from.
+    :param filename: the name of the file to write to.
+    :return:
     """
-    text = ""
-    for edge in graph.edges():
-        string = str(edge).split("'")[1:-1]
-        text += string[0] + ', ' + string[2] + '\n'
-    return text
+    networkx.write_adjlist(graph, filename)
+    return
 
 
-def convert_graph_to_xml(graph):
+def convert_graph_to_graphml(graph, filename):
     """
-    convert from a networkX graph object, to a graphml formatted xml string.
-    :param graph: the networkX graph object
-    :return: the xml describing the graph, in graphml format.
+    convert from a networkX graph object, to graphml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
     """
-    tree = graphml.make_base_xml()
+    networkx.write_graphml(graph, filename, prettyprint=True)
+    return
+
+
+def convert_graph_to_gml(graph, filename):
+    """
+    convert from a networkX graph object, to gml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gml(graph, filename)
+    return
+
+
+def convert_graph_to_gexf(graph, filename):
+    """
+    convert from a networkX graph object, to gefx format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gexf(graph, filename)
+    return
+
+
+def convert_graph_to_yaml(graph, filename):
+    """
+    convert from a networkX graph object, to yaml format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_yaml(graph, filename)
+    return
+
+
+def convert_graph_to_json(graph, filename):
+    """
+    convert from a networkX graph object, to serialized json format.
+    :param graph: the networkX graph object.
+    :param filename: the name of the file to write to.
+    :return:
+    """
+    networkx.write_gml(graph, filename)
+    # find the lowest degree node
+    # store [node_name, degree] and compare for the lowest degree
+    root_node = [graph.nodes()[0], graph.node[graph.nodes()[0]]['degree']]
     for node in graph.nodes():
-        graphml.make_node(tree, node, **graph.node[node])
-    for edge in graph.edges():
-        graphml.make_edge(tree, edge[0], edge[1], **graph.edge[edge[0]][edge[1]])
-    return graphml.build_xml_string(tree)
-
-
-# def convert_graph_to_text(graph):
-
-
-def generate_file(filename, text):
+        if graph.node[node]['degree'] < root_node[1]:
+            root_node = [node, graph.node[node]['degree']]
+            break
+    data = json_graph.tree_data(graph, root=root_node[0])
     with open(filename, 'w') as f:
-        f.write(text)
+        f.write(json.dumps(data))
+    return
+
+
+def generate_output(graph, output_format, filename):
+    """
+    Send the graph to console as adjacency list text, or to a file in a specified format.
+    :param graph: The networkX graph object
+    :param output_format: how to format the output graph data
+    :param filename: the file to write to. if output_format is None, then this is ignored.
+    :return:
+    """
+    if output_format is None:
+        text = networkx.generate_adjlist(graph)
+        print (text)
+    elif output_format not in OUTPUT_FORMATS:
+        raise AttributeError("The output format is not recognised. requested format was: "
+                             + output_format)
+    else:
+        # temporary mapping of format codes to formatter funcs.
+        OUTPUT_FUNCS = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
+                    convert_graph_to_gexf, convert_graph_to_yaml]
+        output_mapping = dict()
+        for index in range(len(OUTPUT_FORMATS)):
+            try:
+                output_mapping[OUTPUT_FORMATS[index]] = OUTPUT_FUNCS[index]
+            except IndexError:
+                break
+        # now convert to the format and write to file.
+        try:
+            output_mapping[output_format](graph, filename)
+        except KeyError:
+            raise AttributeError("""The output format was not recognised or did not have an
+                                 associated conversion function. Requested format was: """ +
+                                 output_format)
+
+
+
+
+    return
 
 
 def main_function():
