@@ -37,6 +37,8 @@ API_VERSION = 'v3'
 TEMP_FILENAME = '!__temp__'
 DEFAULT_OUTPUT_FILENAME = 'graph.out'
 
+OUTPUT_FORMATS = ['text', 'graphml', 'gml','gexf','yaml']
+
 def prepare_logger(verbosity):
     """
     setup the logger
@@ -139,7 +141,7 @@ def setup_arg_parser():
                         help="""A file to record graphing data to. Must be a valid name for the
                         operating system. If the option is omitted then no file is made.""")
     parser.add_argument('-o', '--output', action='store', type=str, default=None,
-                        choices=['text', 'graphml', 'gml','gexf','json','yaml'],
+                        choices=OUTPUT_FORMATS,
                         help="""Format to convert the graph data into. Valid choices are:
                         text (default) - tab formatted text listing edges and related nodes.
                         graphml - xml formatted according to graphml specifications.
@@ -479,9 +481,42 @@ def convert_graph_to_json(graph, filename):
     return
 
 
-def generate_file(filename, text):
-    with open(filename, 'w') as f:
-        f.write(text)
+def generate_output(graph, output_format, filename):
+    """
+    Send the graph to console as adjacency list text, or to a file in a specified format.
+    :param graph: The networkX graph object
+    :param output_format: how to format the output graph data
+    :param filename: the file to write to. if output_format is None, then this is ignored.
+    :return:
+    """
+    if output_format is None:
+        text = networkx.generate_adjlist(graph)
+        print (text)
+    elif output_format not in OUTPUT_FORMATS:
+        raise AttributeError("The output format is not recognised. requested format was: "
+                             + output_format)
+    else:
+        # temporary mapping of format codes to formatter funcs.
+        OUTPUT_FUNCS = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
+                    convert_graph_to_gexf, convert_graph_to_yaml]
+        output_mapping = dict()
+        for index in range(len(OUTPUT_FORMATS)):
+            try:
+                output_mapping[OUTPUT_FORMATS[index]] = OUTPUT_FUNCS[index]
+            except IndexError:
+                break
+        # now convert to the format and write to file.
+        try:
+            output_mapping[output_format](graph, filename)
+        except KeyError:
+            raise AttributeError("""The output format was not recognised or did not have an
+                                 associated conversion function. Requested format was: """ +
+                                 output_format)
+
+
+
+
+    return
 
 
 def main_function():

@@ -174,7 +174,7 @@ class ArgsParserTestCases(unittest.TestCase):
         self.assertEqual(response.filename, filename)
 
     def test_args_output(self):
-        testing_outputs = ['text', 'graphml', 'gml','gexf','json','yaml']
+        testing_outputs = ['text', 'graphml', 'gml','gexf','yaml']
         parser = main_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -235,16 +235,18 @@ class DataOutputTestCases(unittest.TestCase):
 
     MOCK_GRAPH = Graph()
     MOCK_GRAPH.add_node('1', degree=0)
+    MOCK_GRAPH.add_node('2', degree=1)
+    MOCK_GRAPH.add_node('3', degree=2)
+    MOCK_GRAPH.add_node('4', degree=1)
     MOCK_GRAPH.add_edge('1','2')
     MOCK_GRAPH.add_edge('2','3')
+    MOCK_GRAPH.add_edge('1','4')
 
     MOCK_OUTPUT = "This is mock output.\n"
 
     MOCK_FILE_OUTPUT = 'mockfile.out'
 
     STDOUT_REDIRECTION = 'output_std_file'
-
-    # TODO: gneerate_output will output text to console if no output format specified. otherwise it will output to file in the format specified, default filename if no filename given.
 
     def setUp(self):
         self.old_stdout = sys.stdout
@@ -259,55 +261,131 @@ class DataOutputTestCases(unittest.TestCase):
         main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             output = f.read()
-        expected = "1 2\n2 3\n"
-        for index in range(len(output)):
-            self.assertEqual(output[index], expected[index])
+            output = output.split('\n')
+        result_graph = nx.parse_adjlist(output)
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_graphml(self):
         main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_gml(self):
         main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_json(self):
+        self.skipTest('Requires directed Graphs, which are outside the scope of the project.')
         main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             json_data = json.load(f.read())
             result_graph = json_graph.tree_graph(json_data)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        result_nodes = result_graph.nodes()
+        result_edges = result_graph.edges()
+        original_nodes = self.MOCK_GRAPH.nodes()
+        original_edges = self.MOCK_GRAPH.edges()
+        result_edges.sort()
+        result_nodes.sort()
+        original_edges.sort()
+        original_nodes.sort()
+        self.assertEqual(original_nodes, result_nodes)
+        self.assertEqual(original_edges, result_edges)
 
     def test_graph_conversion_to_gexf(self):
         main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_graph_conversion_to_yaml(self):
         main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
-        self.assertEqual(self.MOCK_GRAPH.nodes(), result_graph.nodes())
-        self.assertEqual(self.MOCK_GRAPH.edges(), result_graph.edges())
+        for node in self.MOCK_GRAPH.nodes():
+            self.assertIn(node, result_graph.nodes())
+        for edge in self.MOCK_GRAPH.edges():
+            try:
+                self.assertIn(edge, result_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, result_graph.edges())
+                continue
 
     def test_output(self):
-        main_script.generate_output(self.MOCK_FILE_OUTPUT, self.MOCK_OUTPUT)
-        self.assertTrue(os.path.exists(self.MOCK_FILE_OUTPUT))
-        with open(self.MOCK_FILE_OUTPUT) as f:
-            self.assertEqual(f.read(), self.MOCK_OUTPUT)
+        CUSTOM_FILENAME = 'custom.out'
 
-        main_script.generate_output(None, self.MOCK_OUTPUT)
-        sys.stdout.flush()
-        with open(self.STDOUT_REDIRECTION) as f:
-            self.assertEqual(f.read(), self.MOCK_OUTPUT)
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
+            self.assertFalse(os.path.exists(self.MOCK_FILE_OUTPUT))
+        except AttributeError:
+            self.fail()
 
-    # def test_
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', self.MOCK_FILE_OUTPUT)
+            result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
+            for node in self.MOCK_GRAPH.nodes():
+                self.assertIn(node, result_graph.nodes())
+            for edge in self.MOCK_GRAPH.edges():
+                try:
+                    self.assertIn(edge, result_graph.edges())
+                except AssertionError:
+                    edge = (edge[1], edge[0])
+                    self.assertIn(edge, result_graph.edges())
+                    continue
+        except AttributeError:
+            self.fail()
 
+        try:
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', CUSTOM_FILENAME)
+            result_graph = nx.read_gml(CUSTOM_FILENAME)
+            for node in self.MOCK_GRAPH.nodes():
+                self.assertIn(node, result_graph.nodes())
+            for edge in self.MOCK_GRAPH.edges():
+                try:
+                    self.assertIn(edge, result_graph.edges())
+                except AssertionError:
+                    edge = (edge[1], edge[0])
+                    self.assertIn(edge, result_graph.edges())
+                    continue
+        except AttributeError:
+            self.fail()
+
+        self.assertRaises(AttributeError, main_script.generate_output,
+                          self.MOCK_GRAPH, 'fake_format', CUSTOM_FILENAME)
+
+        if os.path.exists(CUSTOM_FILENAME):
+            os.remove(CUSTOM_FILENAME)
 
 if __name__ == '__main__':
     nose.run()
