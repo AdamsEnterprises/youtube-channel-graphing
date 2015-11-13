@@ -5,8 +5,6 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 __author__ = 'Roland'
 
-# TODO: change output arguments, if no output argument then no record to file and show only adjacency list to console, otherwise write formatted output to file.
-
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
 from multiprocessing import Queue
@@ -404,13 +402,15 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         return
 
     def _transfer_next_ids_to_queue():
-        while len(next_channel_ids) > 0:
-            id_queue.put(next_channel_ids.pop())
+        for id in next_channel_ids:
+            if id not in processed_ids:
+                id_queue.put(id)
+            next_channel_ids.clear()
         return
 
     id_queue = Queue()
     processed_ids = set()
-    next_channel_ids = list()
+    next_channel_ids = set()
     current_name = extract_user_name(initial_channel, api)
     graph.add_node(current_name, degree=0)
     id_queue.put( (current_name, initial_channel) )
@@ -421,27 +421,20 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             current_name, current_id, = id_queue.get()
             associates = get_association_list(current_id, api)
             for assoc_id in associates:
-                if assoc_id not in processed_ids:
-                    assoc_name = extract_user_name(assoc_id, api)
-                    if assoc_name not in graph.nodes():
-                        graph.add_node(assoc_name)
-                    # TODO: complete this.
-                    if (current_name, assoc_name) not in graph.edges() and \
-                            (assoc_name, current_name) not in graph.edges():
-                        graph.add_edge(current_name, assoc_name)
-
-
-
-
-
+                assoc_name = extract_user_name(assoc_id, api)
+                if assoc_name not in graph.nodes():
+                    graph.add_node(assoc_name, degree=depth)
+                # TODO: complete this.
+                if (current_name, assoc_name) not in graph.edges() and \
+                        (assoc_name, current_name) not in graph.edges():
+                    graph.add_edge(current_name, assoc_name)
+                if assoc_id not in next_channel_ids:
+                    next_channel_ids.add(assoc_id)
+            processed_ids.add(current_id)
+        _transfer_next_ids_to_queue()
         depth += 1
 
-
-
-
-
-
-
+    return
 
 
 def build_colour_generator():
