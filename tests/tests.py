@@ -87,9 +87,10 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_target_ids = ['HBO','Cinemax','HBOBoxing','HBODocs',
-                              'Real Time with Bill Maher','GameofThrones','trueblood',
-                              'HBOLatino']
+        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ','UCYbinjMxWwjRpp4WqgDqEDA',
+                              'UCWPQB43yGKEum3eW0P9N_nQ','UCbKo3HsaBOPhdRpgzqtRnqA',
+                              'UCy6kyFxaMqGtpE3pQTflK8A','UCQzdMyuz0Lf4zo4uGcEujFw',
+                              'UCPnlBOg4_NU9wdhRN-vzECQ','UCeKum6mhlVAjUFIW15mVBPg']
 
         # sort the target_list
         testing_target_ids.sort()

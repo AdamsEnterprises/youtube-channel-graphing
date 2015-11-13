@@ -432,11 +432,32 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             processed_ids.add(current_id)
         _transfer_next_ids_to_queue()
         depth += 1
+    id_queue.close()
     return
 
 
 def build_colour_generator():
-    pass
+    x = 256 * 256 * 256 - 1
+    b_factor = 256/4
+    g_factor = (256*256)/4 - 256
+    r_factor = (256*256*256)/4 - (256*256)
+    mod_factor = (256*256)
+
+    while True:
+        r = x / mod_factor
+        if r > 255: r = 255
+        g = x % mod_factor / 256
+        if g > 255: g = 255
+        b = (x % mod_factor) % 256
+        if b > 255: b = 255
+        code = '#' + hex(r)[2:] + hex(g)[2:] + hex(b)[2:]
+        yield code
+        x -= b_factor
+        if (x % mod_factor) % 256 == 255:
+            x -= g_factor
+            if (x % mod_factor) / 256 == 255:
+                x -= r_factor
+        if x < 0: x = 256 * 256 * 256 - 1
 
 
 def main_function():
@@ -459,9 +480,12 @@ def main_function():
     generate_output(youtube_user_graph, arguments.output, arguments.filename)
     if arguments.show_graph:
         colours = build_colour_generator()
-        # networkx.draw_spring(youtube_user_graph,
-        #                      node_color=[colours[youtube_user_graph.node[node]['degree']]
-        #                                  for node in youtube_user_graph])
+        colours_dict = dict()
+        for i in range(arguments.degree + 1):
+            colours_dict[i] = colours.next()
+        networkx.draw_spring(youtube_user_graph,
+                             node_color=[colours_dict[youtube_user_graph.node[node]['degree']]
+                                         for node in youtube_user_graph])
         plt.show()
 
 if __name__ == '__main__':
