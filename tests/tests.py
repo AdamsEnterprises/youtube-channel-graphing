@@ -108,7 +108,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
-            self.assertEqual(results[i][0], testing_target_ids[i])
+            self.assertEqual(results[i], testing_target_ids[i])
 
         self.assertRaises(AttributeError, main_script.get_association_list, None, api)
         self.assertRaises(AttributeError, main_script.get_association_list,

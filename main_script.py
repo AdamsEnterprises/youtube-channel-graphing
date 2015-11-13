@@ -9,8 +9,7 @@ __author__ = 'Roland'
 
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
-
-import random
+from multiprocessing import Queue
 #  from Queue import Empty as EmptyQueueException
 import argparse
 import json
@@ -227,7 +226,6 @@ def create_youtube_api(developerKey=None):
     return api
 
 
-
 def get_association_list(id, api):
     """
     grab a list of associated channels
@@ -246,7 +244,7 @@ def get_association_list(id, api):
         associate_list = list()
         channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
         for channel in channels:
-            associate_list.append( (extract_user_name(channel, api), channel) )
+            associate_list.append( channel )
         return associate_list
 
     except AttributeError as a:
@@ -392,8 +390,58 @@ def generate_output(graph, output_format, filename):
     return
 
 
-def build_graph(graph, max_degree, initial_channel, logger):
-    pass
+def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
+    """
+    given an initial graph and node, build a complete tree graph out to a given depth.
+    :param graph: the networkx graph object to work with.
+    :param max_depth: furthermost depth to build to, e.g. 1 gets immediate associates,
+        2 gets associates of immediate associates, etc.
+    :param initial_channel: the channel id for the initial node
+    :param logger: logging object for generating verbose messages
+    :return:
+    """
+    if initial_channel is None:
+        return
+
+    def _transfer_next_ids_to_queue():
+        while len(next_channel_ids) > 0:
+            id_queue.put(next_channel_ids.pop())
+        return
+
+    id_queue = Queue()
+    processed_ids = set()
+    next_channel_ids = list()
+    current_name = extract_user_name(initial_channel, api)
+    graph.add_node(current_name, degree=0)
+    id_queue.put( (current_name, initial_channel) )
+    depth = 1
+
+    while depth <= max_depth:
+        while id_queue.qsize() > 0 and not id_queue.empty():
+            current_name, current_id, = id_queue.get()
+            associates = get_association_list(current_id, api)
+            for assoc_id in associates:
+                if assoc_id not in processed_ids:
+                    assoc_name = extract_user_name(assoc_id, api)
+                    if assoc_name not in graph.nodes():
+                        graph.add_node(assoc_name)
+                    # TODO: complete this.
+                    if (current_name, assoc_name) not in graph.edges() and \
+                            (assoc_name, current_name) not in graph.edges():
+                        graph.add_edge(current_name, assoc_name)
+
+
+
+
+
+        depth += 1
+
+
+
+
+
+
+
 
 
 def build_colour_generator():
@@ -410,13 +458,12 @@ def main_function():
     arguments = verify_arguments(parser, None)
     logger = prepare_logger(arguments.verbose)
     api = create_youtube_api(developerKey=arguments.api_key)
-    first_user = extract_user_name(arguments.id, api)
     # colour generator
 
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
-    youtube_user_graph.add_node(first_user, degree=0)
-    build_graph(youtube_user_graph, arguments.degree, arguments.id, logger)
+    build_graph(youtube_user_graph, api, max_depth=arguments.degree,
+                initial_channel=arguments.id, logger=logger)
 
     generate_output(youtube_user_graph, arguments.output, arguments.filename)
 
