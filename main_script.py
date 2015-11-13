@@ -10,9 +10,7 @@ __author__ = 'Roland'
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
 
-import itertools
 import random
-import multiprocessing
 #  from Queue import Empty as EmptyQueueException
 import argparse
 import json
@@ -283,127 +281,6 @@ def extract_user_name(id, api):
             raise a
 
 
-def generate_colours(value):
-    """
-    create a list of random colours.
-    :param value: an integer influencing how many colours to create
-    :return: a list of (value + 1) colours
-    """
-
-    def create_colour_code_permutations(value_range):
-        """
-        # create a list of all colour code permutations, depending on a given range of values.
-        :return: list of colour codes
-        """
-        permutation_list = list()
-        for i in itertools.product(value_range, value_range, value_range):
-            # convert from (R, G, B)decimal to '#RRGGBB'hex
-            code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-            permutation_list.append(code)
-        return permutation_list
-
-    if not isinstance(value, int):
-        raise TypeError("Parameter must be Integer.")
-    if value <= 0:
-        raise ValueError("Parameter must be greater than or equal to 1.")
-    color_list = list()
-    # for x colours required, there are x^3-2 colours produced
-    factor = 2
-    # rnumber of degrees is (0, ..., n) thus number of colours returned = n + 1
-    while value + 1 > ((factor * factor * factor) - 2):
-        factor += 1
-    scale_factor = int((256.0 / (factor - 1) - 0.1))
-    scale = range(0, 256, scale_factor)
-    code_list = create_colour_code_permutations(scale)
-    # dump existing colours, and black and white
-    del code_list[0]
-    del code_list[-1]
-    # create list of colours, unique per degree of separation
-
-    while value >= 0:
-        index = random.randint(0, len(code_list) - 1)
-        color_list.append(code_list[index])
-        del code_list[index]
-        value -= 1
-
-    return color_list
-
-
-def generate_relationship_graph(graph_nodes, max_degree, first_user, logger):
-    """
-    creates a graphing object representing you tube users and associations.
-    :param graph_nodes: the object storing the graph nodes and edges.
-        must conform to networkx.Graph object API.
-    :return: a networkX graph object, containg users as nodes and relationships as edges.
-    """
-
-    def _queue_next_users__to_do(user_list, queue):
-        """
-        transfer list of next users into the queue
-        :param user_list:   list of next users
-        :param queue:       queue to transfer to
-        :return:
-        """
-        while len(users_to_do) > 0:
-            user = user_list.pop()
-            queue.put(user)
-        return
-
-    def _process_colleague(origin, current_user, current_degree, user_graph, logger):
-        """
-        add a colleague to the nodes and edges as needed. enlist the colleague if not already
-        processed.
-        :param origin:          user this colleague relates to
-        :param current_user:    the colleague
-        :param user_graph:      the graph to add nodes and edges to.
-        :return:
-        """
-        if not user_graph.has_node(current_user):
-            user_graph.add_node(current_user, degree=current_degree)
-            declare_new_node(logger, current_user)
-        if not user_graph.has_edge(origin, current_user) or \
-                user_graph.has_edge(current_user, origin):
-            user_graph.add_edge(origin, current_user)
-            declare_new_edge(logger, origin, current_user)
-        return
-
-    # pylint: disable=maybe-no-member
-    user_queue = multiprocessing.Queue()
-    users_processed = list()
-    users_to_do = list()
-    users_to_do.append(first_user)
-    degree = 1
-
-    while degree <= max_degree:
-        declare_degree(logger, degree)
-
-        _queue_next_users__to_do(users_to_do, user_queue)
-
-        while True:
-
-            # unload the next users from the queue.
-            if user_queue.empty() and user_queue.qsize() < 1:
-                # ran out of next_users - stop analyzing this level
-                break
-
-            user_name, url = user_queue.get()
-            # list of (name, url) tuples with edge to this user url.
-            associations = get_association_list(url)
-            for colleague in associations:
-                colleague_name, _ = colleague
-                _process_colleague(user_name, colleague_name, degree, graph_nodes, logger)
-                if degree < max_degree \
-                        and colleague not in users_processed \
-                        and colleague not in users_to_do:
-                    users_to_do.append(colleague)
-
-            users_processed.append((user_name, url))
-            declare_processed_users(logger, len(users_processed))
-
-        degree += 1
-    return graph_nodes
-
-
 def convert_graph_to_text(graph, filename):
     """
     given a graph object, write a file containing the adjacency list.
@@ -512,11 +389,15 @@ def generate_output(graph, output_format, filename):
             raise AttributeError("""The output format was not recognised or did not have an
                                  associated conversion function. Requested format was: """ +
                                  output_format)
-
-
-
-
     return
+
+
+def build_graph(graph, max_degree, initial_channel, logger):
+    pass
+
+
+def build_colour_generator():
+    pass
 
 
 def main_function():
@@ -528,26 +409,16 @@ def main_function():
     parser = setup_arg_parser()
     arguments = verify_arguments(parser, None)
     logger = prepare_logger(arguments.verbose)
-    first_user = (extract_first_user_name(arguments.url), arguments.url)
-    max_degree = arguments.degree
+    api = create_youtube_api(developerKey=arguments.api_key)
+    first_user = extract_user_name(arguments.id, api)
+    # colour generator
 
     youtube_user_graph = networkx.Graph()
     youtube_user_graph.clear()
+    youtube_user_graph.add_node(first_user, degree=0)
+    build_graph(youtube_user_graph, arguments.degree, arguments.id, logger)
 
-    youtube_user_graph.add_node(first_user[0], degree=0)
-    generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
-
-    output = convert_graph_to_text(youtube_user_graph)
-    if arguments.output == 'text':
-        output = convert_graph_to_text(youtube_user_graph)
-    elif arguments.output == 'xml':
-        output = convert_graph_to_xml(youtube_user_graph)
-
-    if arguments.filename is not None:
-        generate_file(arguments.filename, output)
-    else:
-        print ("Graph output:\n")
-        print (output)
+    generate_output(youtube_user_graph, arguments.output, arguments.filename)
 
     if arguments.show_graph:
         colors = generate_colours(max_degree)
