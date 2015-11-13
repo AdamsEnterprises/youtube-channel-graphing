@@ -20,8 +20,6 @@ import networkx
 from networkx.readwrite import json_graph
 import matplotlib.pyplot as plt
 
-random.seed(-1)
-
 
 GENERAL_MESSAGE = '%(message)s'
 DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
@@ -402,38 +400,38 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         return
 
     def _transfer_next_ids_to_queue():
-        for id in next_channel_ids:
+        while len(next_channel_ids) > 0:
+            id = next_channel_ids.pop()
             if id not in processed_ids:
                 id_queue.put(id)
-            next_channel_ids.clear()
         return
+
+    def _process_associates():
+        associates = get_association_list(current_id, api)
+        for assoc_id in associates:
+            assoc_name = extract_user_name(assoc_id, api)
+            if assoc_name not in graph.nodes():
+                graph.add_node(assoc_name, degree=depth)
+            if (current_name, assoc_name) not in graph.edges() and \
+                    (assoc_name, current_name) not in graph.edges():
+                graph.add_edge(current_name, assoc_name)
+            if assoc_id not in next_channel_ids:
+                next_channel_ids.append( (assoc_name, assoc_id) )
 
     id_queue = Queue()
     processed_ids = set()
-    next_channel_ids = set()
+    next_channel_ids = list()
     current_name = extract_user_name(initial_channel, api)
     graph.add_node(current_name, degree=0)
     id_queue.put( (current_name, initial_channel) )
     depth = 1
-
     while depth <= max_depth:
         while id_queue.qsize() > 0 and not id_queue.empty():
             current_name, current_id, = id_queue.get()
-            associates = get_association_list(current_id, api)
-            for assoc_id in associates:
-                assoc_name = extract_user_name(assoc_id, api)
-                if assoc_name not in graph.nodes():
-                    graph.add_node(assoc_name, degree=depth)
-                # TODO: complete this.
-                if (current_name, assoc_name) not in graph.edges() and \
-                        (assoc_name, current_name) not in graph.edges():
-                    graph.add_edge(current_name, assoc_name)
-                if assoc_id not in next_channel_ids:
-                    next_channel_ids.add(assoc_id)
+            _process_associates()
             processed_ids.add(current_id)
         _transfer_next_ids_to_queue()
         depth += 1
-
     return
 
 
@@ -459,12 +457,11 @@ def main_function():
                 initial_channel=arguments.id, logger=logger)
 
     generate_output(youtube_user_graph, arguments.output, arguments.filename)
-
     if arguments.show_graph:
-        colors = generate_colours(max_degree)
-        networkx.draw_spring(youtube_user_graph,
-                             node_color=[colors[youtube_user_graph.node[node]['degree']]
-                                         for node in youtube_user_graph])
+        colours = build_colour_generator()
+        # networkx.draw_spring(youtube_user_graph,
+        #                      node_color=[colours[youtube_user_graph.node[node]['degree']]
+        #                                  for node in youtube_user_graph])
         plt.show()
 
 if __name__ == '__main__':

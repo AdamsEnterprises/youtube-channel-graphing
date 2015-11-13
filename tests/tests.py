@@ -253,12 +253,14 @@ class GraphGenerationTestCases(unittest.TestCase):
     MOCK_GRAPH.add_edge('E','A')
     MOCK_GRAPH.add_edge('H','C')
     MOCK_GRAPH.add_edge('I','D')
+    MOCK_GRAPH.add_edge('C','D')
 
     def setUp(self):
         # save the normal script api functions
         self.old_assoc = main_script.get_association_list
         self.old_names = main_script.extract_user_name
 
+        # mock the api functions, so instead of youtube API they access the mock graph
         def _mock_get_association_list(id, api):
             association_list = []
             for edge in self.MOCK_GRAPH.edges():
@@ -279,7 +281,38 @@ class GraphGenerationTestCases(unittest.TestCase):
         main_script.extract_user_name = self.old_names
 
     def test_create_graph(self):
-        pass
+        expected_graph = nx.Graph()
+        expected_graph.add_node('Bob', degree=0)
+        expected_graph.add_node('Jim', degree=1)
+        expected_graph.add_node('Carey', degree=1)
+        expected_graph.add_node('Hurshel', degree=1)
+        expected_graph.add_node('Errol', degree=2)
+        expected_graph.add_node('Morgan', degree=2)
+        expected_graph.add_node('Carol', degree=2)
+        expected_graph.add_node('Monty', degree=3)
+        expected_graph.add_node('Zara', degree=4)
+        expected_graph.add_path(['Bob', 'Jim', 'Errol'])
+        expected_graph.add_path(['Bob', 'Hurshel', 'Carol', 'Monty', 'Zara'])
+        expected_graph.add_path(['Bob', 'Carey', 'Zara'])
+        expected_graph.add_path(['Monty', 'Hurshel', 'Carey'])
+        expected_graph.add_edge('Bob', 'Errol')
+        expected_graph.add_edge('Hurshel', 'Morgan')
+
+        actual_graph = nx.Graph()
+
+        main_script.build_graph(actual_graph, None, max_depth=7, initial_channel='A')
+
+        for node in expected_graph.nodes():
+            self.assertIn(node, actual_graph.nodes())
+        for edge in expected_graph.edges():
+            try:
+                self.assertIn(edge, actual_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, actual_graph.edges())
+                continue
+
+
 
 
 class DataOutputTestCases(unittest.TestCase):
