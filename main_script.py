@@ -7,8 +7,8 @@ __author__ = 'Roland'
 
 from logging import getLogger, StreamHandler, Formatter
 from logging import ERROR, INFO
-from multiprocessing import Queue
-#  from Queue import Empty as EmptyQueueException
+from multiprocessing import JoinableQueue as JQueue
+from queue import Empty as EmptyQueueException
 import argparse
 import json
 
@@ -418,7 +418,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             if assoc_id not in next_channel_ids:
                 next_channel_ids.append( (assoc_name, assoc_id) )
 
-    id_queue = Queue()
+    id_queue = JQueue()
     processed_ids = set()
     next_channel_ids = list()
     current_name = extract_user_name(initial_channel, api)
@@ -430,8 +430,14 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             current_name, current_id, = id_queue.get()
             _process_associates()
             processed_ids.add(current_id)
+            id_queue.task_done()
         _transfer_next_ids_to_queue()
         depth += 1
+    while not id_queue.empty():
+        try:
+            id_queue.get(timeout=0.001)
+        except EmptyQueueException:
+            continue
     id_queue.close()
     return
 
