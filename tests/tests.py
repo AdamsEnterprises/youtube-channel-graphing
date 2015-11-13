@@ -231,6 +231,57 @@ class ArgsVerificationTestCases(unittest.TestCase):
                               '-f', self.TESTING_FILENAME + char])
 
 
+class GraphGenerationTestCases(unittest.TestCase):
+    MOCK_GRAPH = Graph()
+    MOCK_GRAPH.add_node('A', name='Bob')
+    MOCK_GRAPH.add_node('B', name='Jim')
+    MOCK_GRAPH.add_node('D', name='Carey')
+    MOCK_GRAPH.add_node('C', name='Hurshel')
+    MOCK_GRAPH.add_node('E', name='Errol')
+    MOCK_GRAPH.add_node('G', name='Carol')
+    MOCK_GRAPH.add_node('H', name='Monty')
+    MOCK_GRAPH.add_node('I', name='Zara')
+    MOCK_GRAPH.add_node('F', name='Morgan')
+    MOCK_GRAPH.add_edge('A','B')
+    MOCK_GRAPH.add_edge('A','C')
+    MOCK_GRAPH.add_edge('A','D')
+    MOCK_GRAPH.add_edge('B','E')
+    MOCK_GRAPH.add_edge('C','F')
+    MOCK_GRAPH.add_edge('C','G')
+    MOCK_GRAPH.add_edge('G','H')
+    MOCK_GRAPH.add_edge('H','I')
+    MOCK_GRAPH.add_edge('E','A')
+    MOCK_GRAPH.add_edge('H','C')
+    MOCK_GRAPH.add_edge('I','D')
+
+    def setUp(self):
+        # save the normal script api functions
+        self.old_assoc = main_script.get_association_list
+        self.old_names = main_script.extract_user_name
+
+        def _mock_get_association_list(id, api):
+            association_list = []
+            for edge in self.MOCK_GRAPH.edges():
+                if id in edge:
+                    a, b = edge
+                    if id == a: association_list.append(b)
+                    else: association_list.append(a)
+            return association_list
+
+        def _mock_extract_user_name(id, api):
+            return self.MOCK_GRAPH.node[id]['name']
+
+        main_script.get_association_list = _mock_get_association_list
+        main_script.extract_user_name = _mock_extract_user_name
+
+    def tearDown(self):
+        main_script.get_association_list = self.old_assoc
+        main_script.extract_user_name = self.old_names
+
+    def test_create_graph(self):
+        pass
+
+
 class DataOutputTestCases(unittest.TestCase):
 
     MOCK_GRAPH = Graph()
