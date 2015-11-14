@@ -88,10 +88,10 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ','UCYbinjMxWwjRpp4WqgDqEDA',
-                              'UCWPQB43yGKEum3eW0P9N_nQ','UCbKo3HsaBOPhdRpgzqtRnqA',
-                              'UCy6kyFxaMqGtpE3pQTflK8A','UCQzdMyuz0Lf4zo4uGcEujFw',
-                              'UCPnlBOg4_NU9wdhRN-vzECQ','UCeKum6mhlVAjUFIW15mVBPg']
+        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ', 'UCYbinjMxWwjRpp4WqgDqEDA',
+                              'UCWPQB43yGKEum3eW0P9N_nQ', 'UCbKo3HsaBOPhdRpgzqtRnqA',
+                              'UCy6kyFxaMqGtpE3pQTflK8A', 'UCQzdMyuz0Lf4zo4uGcEujFw',
+                              'UCPnlBOg4_NU9wdhRN-vzECQ', 'UCeKum6mhlVAjUFIW15mVBPg']
 
         # sort the target_list
         testing_target_ids.sort()
@@ -128,7 +128,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         """
         testing_target_username = "LastWeekTonight"
         try:
-            api=self._youtube_api()
+            api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
             name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
         except (HttpError, AttributeError):
@@ -139,10 +139,14 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         result = main_script.extract_user_name(self.INVALID_CODE, api)
         self.assertIsNone(result)
 
-        self.assertRaises(RuntimeError, main_script.extract_user_name, None, api)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, None, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          None, api)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          None, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          self.TESTING_CHANNEL_ID, non_api)
 
 
 class ArgsParserTestCases(unittest.TestCase):
@@ -170,7 +174,8 @@ class ArgsParserTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
         testing_degrees = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         for test_degree in testing_degrees:
-            response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
+            response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                          self.TESTING_API_KEY, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
         # Do not check degrees of 0 or less (non-sensical) - verify_arguments will do this.
@@ -178,12 +183,13 @@ class ArgsParserTestCases(unittest.TestCase):
     def test_args_filename(self):
         filename = 'mock_filename'
         parser = main_script.setup_arg_parser()
-        response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-f', filename])
+        response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                      self.TESTING_API_KEY, '-f', filename])
 
         self.assertEqual(response.filename, filename)
 
     def test_args_output(self):
-        testing_outputs = ['text', 'graphml', 'gml','gexf','yaml']
+        testing_outputs = ['text', 'graphml', 'gml', 'gexf', 'yaml']
         parser = main_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -193,7 +199,7 @@ class ArgsParserTestCases(unittest.TestCase):
         # Do not check bad choices - arg parser will catch this.
 
     def test_args_verbose(self):
-        testing_verbosity = [1,2,3,4]
+        testing_verbosity = [1, 2, 3, 4]
         parser = main_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -217,28 +223,31 @@ class ArgsVerificationTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
 
         try:
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '1', '-f', self.TESTING_FILENAME + '.' +
-                                                         self.TESTING_EXT])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', '.' + self.TESTING_FILENAME
-                                                         + '.' + self.TESTING_EXT])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', self.TESTING_FILENAME
-                                                         + '.' + self.TESTING_EXT + '.'])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', self.TESTING_FILENAME])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '1', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', '.' + self.TESTING_FILENAME + '.' + self.TESTING_EXT])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT + '.'])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', self.TESTING_FILENAME])
         except AssertionError as e:
             self.fail(str(e.message))
 
-        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                  '-d', '0', '-f', self.TESTING_FILENAME])
-        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                  '-d', '-1', '-f', self.TESTING_FILENAME])
+        self.assertRaises(AttributeError, main_script.verify_arguments,
+                          parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                   '-d', '0', '-f', self.TESTING_FILENAME])
+        self.assertRaises(AttributeError, main_script.verify_arguments,
+                          parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                   '-d', '-1', '-f', self.TESTING_FILENAME])
         for char in self.BAD_CHARS:
             self.assertRaises(Exception, main_script.verify_arguments,
                               [self.TESTING_CHANNEL_ID, self.API_KEY,
-                              '-f', self.TESTING_FILENAME + char])
+                               '-f', self.TESTING_FILENAME + char])
 
 
 class GraphGenerationTestCases(unittest.TestCase):
@@ -252,18 +261,18 @@ class GraphGenerationTestCases(unittest.TestCase):
     MOCK_GRAPH.add_node('H', name='Monty')
     MOCK_GRAPH.add_node('I', name='Zara')
     MOCK_GRAPH.add_node('F', name='Morgan')
-    MOCK_GRAPH.add_edge('A','B')
-    MOCK_GRAPH.add_edge('A','C')
-    MOCK_GRAPH.add_edge('A','D')
-    MOCK_GRAPH.add_edge('B','E')
-    MOCK_GRAPH.add_edge('C','F')
-    MOCK_GRAPH.add_edge('C','G')
-    MOCK_GRAPH.add_edge('G','H')
-    MOCK_GRAPH.add_edge('H','I')
-    MOCK_GRAPH.add_edge('E','A')
-    MOCK_GRAPH.add_edge('H','C')
-    MOCK_GRAPH.add_edge('I','D')
-    MOCK_GRAPH.add_edge('C','D')
+    MOCK_GRAPH.add_edge('A', 'B')
+    MOCK_GRAPH.add_edge('A', 'C')
+    MOCK_GRAPH.add_edge('A', 'D')
+    MOCK_GRAPH.add_edge('B', 'E')
+    MOCK_GRAPH.add_edge('C', 'F')
+    MOCK_GRAPH.add_edge('C', 'G')
+    MOCK_GRAPH.add_edge('G', 'H')
+    MOCK_GRAPH.add_edge('H', 'I')
+    MOCK_GRAPH.add_edge('E', 'A')
+    MOCK_GRAPH.add_edge('H', 'C')
+    MOCK_GRAPH.add_edge('I', 'D')
+    MOCK_GRAPH.add_edge('C', 'D')
 
     def setUp(self):
         # save the normal script api functions
@@ -271,17 +280,19 @@ class GraphGenerationTestCases(unittest.TestCase):
         self.old_names = main_script.extract_user_name
 
         # mock the api functions, so instead of youtube API they access the mock graph
-        def _mock_get_association_list(id, api):
+        def _mock_get_association_list(channel_id, _):
             association_list = []
             for edge in self.MOCK_GRAPH.edges():
-                if id in edge:
+                if channel_id in edge:
                     a, b = edge
-                    if id == a: association_list.append(b)
-                    else: association_list.append(a)
+                    if channel_id == a:
+                        association_list.append(b)
+                    else:
+                        association_list.append(a)
             return association_list
 
-        def _mock_extract_user_name(id, api):
-            return self.MOCK_GRAPH.node[id]['name']
+        def _mock_extract_user_name(channel_id, _):
+            return self.MOCK_GRAPH.node[channel_id]['name']
 
         main_script.get_association_list = _mock_get_association_list
         main_script.extract_user_name = _mock_extract_user_name
@@ -330,9 +341,9 @@ class DataOutputTestCases(unittest.TestCase):
     MOCK_GRAPH.add_node('2', degree=1)
     MOCK_GRAPH.add_node('3', degree=2)
     MOCK_GRAPH.add_node('4', degree=1)
-    MOCK_GRAPH.add_edge('1','2')
-    MOCK_GRAPH.add_edge('2','3')
-    MOCK_GRAPH.add_edge('1','4')
+    MOCK_GRAPH.add_edge('1', '2')
+    MOCK_GRAPH.add_edge('2', '3')
+    MOCK_GRAPH.add_edge('1', '4')
 
     MOCK_OUTPUT = "This is mock output.\n"
 
