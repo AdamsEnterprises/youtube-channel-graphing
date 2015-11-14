@@ -8,15 +8,19 @@ __author__ = 'Roland'
 from logging import getLogger, StreamHandler, Formatter
 from logging import INFO
 #from multiprocessing import JoinableQueue as JQueue
-from queue import Queue
-from queue import Empty as EmptyQueueException
+try:
+    from queue import Queue
+    from queue import Empty as EmptyQueueException
+except ImportError:
+    from Queue import Queue
+    from Queue import Empty as EmptyQueueException
+
 import argparse
 from itertools import cycle
 import json
 
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
-
 
 import networkx
 from networkx.readwrite import json_graph
