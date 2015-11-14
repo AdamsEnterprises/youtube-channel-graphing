@@ -446,7 +446,7 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_output(self):
-        CUSTOM_FILENAME = 'custom.out'
+        custom_filename = 'custom.out'
 
         try:
             main_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
@@ -470,8 +470,8 @@ class DataOutputTestCases(unittest.TestCase):
             self.fail()
 
         try:
-            main_script.generate_output(self.MOCK_GRAPH, 'gml', CUSTOM_FILENAME)
-            result_graph = nx.read_gml(CUSTOM_FILENAME)
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', custom_filename)
+            result_graph = nx.read_gml(custom_filename)
             for node in self.MOCK_GRAPH.nodes():
                 self.assertIn(node, result_graph.nodes())
             for edge in self.MOCK_GRAPH.edges():
@@ -485,10 +485,10 @@ class DataOutputTestCases(unittest.TestCase):
             self.fail()
 
         self.assertRaises(RuntimeError, main_script.generate_output,
-                          self.MOCK_GRAPH, 'fake_format', CUSTOM_FILENAME)
+                          self.MOCK_GRAPH, 'fake_format', custom_filename)
 
-        if os.path.exists(CUSTOM_FILENAME):
-            os.remove(CUSTOM_FILENAME)
+        if os.path.exists(custom_filename):
+            os.remove(custom_filename)
 
 if __name__ == '__main__':
     nose.run()
