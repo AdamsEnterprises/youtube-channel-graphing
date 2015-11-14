@@ -111,12 +111,14 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         for i in range(len(results)):
             self.assertEqual(results[i], testing_target_ids[i])
 
-        self.assertRaises(AttributeError, main_script.get_association_list, None, api)
-        self.assertRaises(AttributeError, main_script.get_association_list,
+        result = main_script.get_association_list(self.INVALID_CODE, api)
+        self.assertIsNone(result)
+
+        self.assertRaises(RuntimeError, main_script.get_association_list, None, api)
+        self.assertRaises(RuntimeError, main_script.get_association_list,
                           self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(AttributeError, main_script.get_association_list, None, None)
-        self.assertRaises(AttributeError, main_script.get_association_list, self.INVALID_CODE, api)
-        self.assertRaises(AttributeError, main_script.get_association_list,
+        self.assertRaises(RuntimeError, main_script.get_association_list, None, None)
+        self.assertRaises(RuntimeError, main_script.get_association_list,
                           self.TESTING_CHANNEL_ID, non_api)
 
     def test_extract_user_name(self):
@@ -130,11 +132,13 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
 
         self.assertEqual(testing_target_username, name)
 
-        self.assertRaises(AttributeError, main_script.extract_user_name, None, api)
-        self.assertRaises(AttributeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(AttributeError, main_script.extract_user_name, None, None)
-        self.assertRaises(AttributeError, main_script.extract_user_name, self.INVALID_CODE, api)
-        self.assertRaises(AttributeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
+        result = main_script.extract_user_name(self.INVALID_CODE, api)
+        self.assertIsNone(result)
+
+        self.assertRaises(RuntimeError, main_script.extract_user_name, None, api)
+        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name, None, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
 
 
 class ArgsParserTestCases(unittest.TestCase):
@@ -466,7 +470,7 @@ class DataOutputTestCases(unittest.TestCase):
         except AttributeError:
             self.fail()
 
-        self.assertRaises(AttributeError, main_script.generate_output,
+        self.assertRaises(RuntimeError, main_script.generate_output,
                           self.MOCK_GRAPH, 'fake_format', CUSTOM_FILENAME)
 
         if os.path.exists(CUSTOM_FILENAME):
