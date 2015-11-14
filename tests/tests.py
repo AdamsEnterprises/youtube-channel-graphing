@@ -21,53 +21,6 @@ from googleapiclient.errors import HttpError
 from scripts import main_script
 
 
-def scrape_elements(soup, params_hierarchy):
-    """
-    given a beautiful_soup and a sequence of tags to parse down, send back a list of tag elements.
-    e.g. say the hierarchy is:
-        <div>
-            <div class='333'>
-                <ol>
-                    <li class='222'>
-                        <ul>
-                            <li class="777">
-                                <div>
-                                    <a class="111">
-                                    <a class="6666">
-                            ( * 9 more such <li>s)
-                    <li class="333">
-            ( * 2 such <div>s)
-        <div class="999">
-            <a>
-
-    and the hierarchy is:
-        (['div'], {'attrs':{'class':'333'}}), (['li'], {'attrs':{'class':'777'}}),
-            (['a'], {'attrs':{'class':'6666'}})
-
-    the returned list of elements will contain:
-        <a class="6666>
-        ... * 10 elements
-
-    note that if at any stage, no elements match the parse requirements set by the hierarchy, an
-    empty list will be returned.
-
-    :param soup:                the beautifulsoup to process
-    :param params_hierarchy:    list of (args, keywords) to process down the soup tag hierarchy
-    :return:                    list of tag elements parsed via the hierarchy.
-    """
-    elements = list()
-    elements.append(soup)
-    for params in params_hierarchy:
-        results = list()
-        for element in elements:
-            for items in element.find_all(*params[0], **params[1]):
-                for item in items:
-                    if len(item) > 0:
-                        results.append(item)
-        elements = list(results)
-    return elements
-
-
 class YoutubeApiProceduresTestCases(unittest.TestCase):
     """
     Tests for the youtube-graph script
@@ -335,6 +288,9 @@ class GraphGenerationTestCases(unittest.TestCase):
 
 
 class DataOutputTestCases(unittest.TestCase):
+    """
+    Test the functions which convert graphs to other formats and write to console or file
+    """
 
     MOCK_GRAPH = Graph()
     MOCK_GRAPH.add_node('1', degree=0)
@@ -352,15 +308,32 @@ class DataOutputTestCases(unittest.TestCase):
     STDOUT_REDIRECTION = 'output_std_file'
 
     def setUp(self):
+        """
+        change stdout to a file.
+        :return:
+        """
+        if os.path.exists(self.MOCK_FILE_OUTPUT):
+            os.remove(self.MOCK_FILE_OUTPUT)
         self.old_stdout = sys.stdout
         sys.stdout = open(self.STDOUT_REDIRECTION, 'w')
 
     def tearDown(self):
+        """
+        restore stdout and remove unneeded files
+        :return:
+        """
+        sys.stdout.close()
+        sys.stdout = self.old_stdout
+        if os.path.exists(self.STDOUT_REDIRECTION):
+            os.remove(self.STDOUT_REDIRECTION)
         if os.path.exists(self.MOCK_FILE_OUTPUT):
             os.remove(self.MOCK_FILE_OUTPUT)
-        sys.stdout = self.old_stdout
 
     def test_graph_conversion_to_text(self):
+        """
+        convert graph to text, as adjacency list.
+        :return:
+        """
         main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             output = f.read()
@@ -377,6 +350,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_graphml(self):
+        """
+        convert graph to graphml xml format
+        :return:
+        """
         main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -390,6 +367,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_gml(self):
+        """
+        convert graph to gml format
+        :return:
+        """
         main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -403,6 +384,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_json(self):
+        """
+        convert graph to a serialised json tree format useful for js documents.
+        :return:
+        """
         self.skipTest('Requires directed Graphs, which are outside the scope of the project.')
         main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
@@ -420,6 +405,10 @@ class DataOutputTestCases(unittest.TestCase):
         self.assertEqual(original_edges, result_edges)
 
     def test_graph_conversion_to_gexf(self):
+        """
+        convert graph to gexf xml format
+        :return:
+        """
         main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -433,6 +422,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_yaml(self):
+        """
+        convert graph to yaml format
+        :return:
+        """
         main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -446,6 +439,11 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_output(self):
+        """
+        test the output management function. should only output to file if an output
+        format is given. otherwise output to console in adj list text.
+        :return:
+        """
         custom_filename = 'custom.out'
 
         try:
