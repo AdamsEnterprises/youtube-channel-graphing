@@ -5,7 +5,7 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 from logging import getLogger, StreamHandler, Formatter
 from logging import INFO
-#from multiprocessing import JoinableQueue as JQueue
+# from multiprocessing import JoinableQueue as JQueue
 try:
     from queue import Queue
     from queue import Empty as EmptyQueueException
@@ -31,7 +31,8 @@ API_VERSION = 'v3'
 TEMP_FILENAME = '!__temp__'
 DEFAULT_OUTPUT_FILENAME = 'graph.out'
 
-OUTPUT_FORMATS = ['text', 'graphml', 'gml','gexf','yaml']
+OUTPUT_FORMATS = ['text', 'graphml', 'gml', 'gexf', 'yaml']
+
 
 def prepare_logger(verbosity):
     """
@@ -131,12 +132,12 @@ def setup_arg_parser():
                         """)
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
                         choices=[1, 2, 3, 4],
-                help="""Display additional information to the console during processing.
-                     The default (if ommitted) is to not display any information.
-                     Possible choices are:
-                     1 - current degree of separation being processed.
-                     2 - Total users processed.
-                     3 - New users, and relationships between users, found.""")
+                        help="""Display additional information to the console during processing.
+                        The default (if ommitted) is to not display any information.
+                        Possible choices are:
+                        1 - current degree of separation being processed.
+                        2 - Total users processed.
+                        3 - New users, and relationships between users, found.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
                         help="Display a visual depiction of the graph in a separate window, "
                         + "when processing is complete.")
@@ -159,7 +160,8 @@ def verify_arguments(parser, args):
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
-            raise AttributeError(" '-f <filename>': <filename> contains an invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
+            raise AttributeError(" '-f <filename>': <filename> contains an" +
+                                 " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
     def _assert_valid_degree():
         # arguments is from outer scope
@@ -175,7 +177,7 @@ def verify_arguments(parser, args):
             # check for malformed urls
             assert arguments.id is not None
             assert len(arguments.id) > 0
-            temp_api = create_youtube_api(developerKey=arguments.api_key)
+            temp_api = create_youtube_api(developer_key=arguments.api_key)
             response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
             # check this is the correct kind of response
             assert 'kind' in response
@@ -205,17 +207,17 @@ def verify_arguments(parser, args):
     return arguments
 
 
-def create_youtube_api(developerKey=None):
+def create_youtube_api(developer_key=None):
     """
     generate an api object for interfacing with the google youtube api.
-    :param developerKey:
+    :param developer_key: api_key for use by developers
     :return:
     """
     try:
-        if developerKey is None:
+        if developer_key is None:
             raise HttpError(" '<api_key>' developerKey cannot be null.")
         api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
-                              developerKey=developerKey)
+                              developerKey=developer_key)
         return api
     except HttpError as h:
         if "HttpError 400" in str(h):
@@ -223,25 +225,25 @@ def create_youtube_api(developerKey=None):
                                is key a valid api_key? is key spelt correctly?""")
 
 
-def get_association_list(id, api):
+def get_association_list(channel_id, api):
     """
     grab a list of associated channels
-    :param id: the id of the channel to collect associations from.
+    :param channel_id: the id of the channel to collect associations from.
     :param api: the google api object.
     :return: a list of (associated channel name, associated channel id).
     """
 
-    if id is None or api is None:
+    if channel_id is None or api is None:
         raise RuntimeError("""Error in get_association_list(i, a):
                            'i' or 'a' parameter was None.""")
     try:
-        result = api.channels().list(part='brandingSettings', id=id).execute()
+        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
         if len(result['items']) == 0:
             return None
         associate_list = list()
         channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
         for channel in channels:
-            associate_list.append( channel )
+            associate_list.append(channel)
         return associate_list
     except AttributeError as a:
         if 'has no attribute' in str(a):
@@ -254,22 +256,22 @@ def get_association_list(id, api):
             raise RuntimeError("""Error in get_association_list(i, a):
                                failed request to youtube api - check the api_key is correctly
                                spelt.""")
-    except KeyError as k:
+    except KeyError:
         return None
 
 
-def extract_user_name(id, api):
+def extract_user_name(channel_id, api):
     """
     get the username for a given channel
-    :param id: the id of the channel to collect the user name from.
+    :param channel_id: the id of the channel to collect the user name from.
     :param api: the google api object.
     :return: the user name.
     """
-    if id is None or api is None:
+    if channel_id is None or api is None:
         raise RuntimeError("""Error in extract_user_name(i, a):
                            'i' or 'a' parameter was None.""")
     try:
-        result = api.channels().list(part='brandingSettings', id=id).execute()
+        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
         if len(result['items']) == 0:
             return None
         title = result['items'][0]['brandingSettings']['channel']['title']
@@ -285,7 +287,7 @@ def extract_user_name(id, api):
             raise RuntimeError("""Error in extract_user_name(i, a):
                                failed request to youtube api - check the api_key is correctly
                                spelt.""")
-    except KeyError as k:
+    except KeyError:
         return None
 
 
@@ -383,12 +385,12 @@ def generate_output(graph, output_format, filename):
                            value of 'o'=""" + output_format)
     else:
         # temporary mapping of format codes to formatter funcs.
-        OUTPUT_FUNCS = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
-                    convert_graph_to_gexf, convert_graph_to_yaml]
+        output_funcs = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
+                        convert_graph_to_gexf, convert_graph_to_yaml]
         output_mapping = dict()
         for index in range(len(OUTPUT_FORMATS)):
             try:
-                output_mapping[OUTPUT_FORMATS[index]] = OUTPUT_FUNCS[index]
+                output_mapping[OUTPUT_FORMATS[index]] = output_funcs[index]
             except IndexError:
                 break
         # now convert to the format and write to file.
@@ -415,9 +417,9 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
 
     def _transfer_next_ids_to_queue():
         while len(next_channel_ids) > 0:
-            id = next_channel_ids.pop()
-            if id not in processed_ids:
-                id_queue.put(id)
+            channel_id = next_channel_ids.pop()
+            if channel_id not in processed_ids:
+                id_queue.put(channel_id)
         return
 
     def _process_associates():
@@ -427,7 +429,8 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
                             information may be unavailable at this time.
                             channel id = """ + current_id)
         else:
-            for assoc_id in associates:
+            for index in range(len(associates)):
+                assoc_id = associates[index]
                 assoc_name = extract_user_name(assoc_id, api)
                 if assoc_name is not None:
                     if assoc_name not in graph.nodes():
@@ -438,7 +441,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
                         graph.add_edge(current_name, assoc_name)
                         declare_new_edge(logger, current_name, assoc_name)
                     if assoc_id not in next_channel_ids:
-                        next_channel_ids.append( (assoc_name, assoc_id) )
+                        next_channel_ids.append((assoc_name, assoc_id))
                 else:
                     declare_warning(logger, """Could not retrieve this channel's name. This
                                     information may be unavailable at this time.
@@ -452,7 +455,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         raise RuntimeError("""Could not retrieve the initial channel's name. The channel may not
                            have the required information set to public.""")
     graph.add_node(current_name, degree=0)
-    id_queue.put( (current_name, initial_channel) )
+    id_queue.put((current_name, initial_channel))
     depth = 1
     while depth <= max_depth:
         declare_degree(logger, depth)
@@ -461,7 +464,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             _process_associates()
             processed_ids.add(current_id)
             declare_processed_users(logger, len(processed_ids))
-            #id_queue.task_done()
+            # id_queue.task_done()
         _transfer_next_ids_to_queue()
         depth += 1
     while not id_queue.empty():
@@ -469,7 +472,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
             id_queue.get(timeout=0.001)
         except EmptyQueueException:
             continue
-    #id_queue.close()
+    # id_queue.close()
     return
 
 
@@ -491,7 +494,7 @@ def main_function():
         parser = setup_arg_parser()
         arguments = verify_arguments(parser, None)
         logger = prepare_logger(arguments.verbose)
-        api = create_youtube_api(developerKey=arguments.api_key)
+        api = create_youtube_api(developer_key=arguments.api_key)
         # colour generator
 
         youtube_user_graph = networkx.Graph()
@@ -509,11 +512,11 @@ def main_function():
             # labels=networkx.draw_networkx_labels(
             #     youtube_user_graph,pos=networkx.spring_layout(youtube_user_graph))
             networkx.draw_networkx(youtube_user_graph, with_labels=True,
-                                 node_color=[colours_dict[youtube_user_graph.node[node]['degree']]
-                                             for node in youtube_user_graph])
+                                   node_color=[colours_dict[youtube_user_graph.node[node]['degree']]
+                                               for node in youtube_user_graph])
             plt.show()
     except (AttributeError, HttpError) as e:
-        print ('ERROR: ' + str(e) )
+        print ('ERROR: ' + str(e))
 
 if __name__ == '__main__':
     main_function()

@@ -21,53 +21,6 @@ from googleapiclient.errors import HttpError
 from scripts import main_script
 
 
-def scrape_elements(soup, params_hierarchy):
-    """
-    given a beautiful_soup and a sequence of tags to parse down, send back a list of tag elements.
-    e.g. say the hierarchy is:
-        <div>
-            <div class='333'>
-                <ol>
-                    <li class='222'>
-                        <ul>
-                            <li class="777">
-                                <div>
-                                    <a class="111">
-                                    <a class="6666">
-                            ( * 9 more such <li>s)
-                    <li class="333">
-            ( * 2 such <div>s)
-        <div class="999">
-            <a>
-
-    and the hierarchy is:
-        (['div'], {'attrs':{'class':'333'}}), (['li'], {'attrs':{'class':'777'}}),
-            (['a'], {'attrs':{'class':'6666'}})
-
-    the returned list of elements will contain:
-        <a class="6666>
-        ... * 10 elements
-
-    note that if at any stage, no elements match the parse requirements set by the hierarchy, an
-    empty list will be returned.
-
-    :param soup:                the beautifulsoup to process
-    :param params_hierarchy:    list of (args, keywords) to process down the soup tag hierarchy
-    :return:                    list of tag elements parsed via the hierarchy.
-    """
-    elements = list()
-    elements.append(soup)
-    for params in params_hierarchy:
-        results = list()
-        for element in elements:
-            for items in element.find_all(*params[0], **params[1]):
-                for item in items:
-                    if len(item) > 0:
-                        results.append(item)
-        elements = list(results)
-    return elements
-
-
 class YoutubeApiProceduresTestCases(unittest.TestCase):
     """
     Tests for the youtube-graph script
@@ -88,10 +41,10 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ','UCYbinjMxWwjRpp4WqgDqEDA',
-                              'UCWPQB43yGKEum3eW0P9N_nQ','UCbKo3HsaBOPhdRpgzqtRnqA',
-                              'UCy6kyFxaMqGtpE3pQTflK8A','UCQzdMyuz0Lf4zo4uGcEujFw',
-                              'UCPnlBOg4_NU9wdhRN-vzECQ','UCeKum6mhlVAjUFIW15mVBPg']
+        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ', 'UCYbinjMxWwjRpp4WqgDqEDA',
+                              'UCWPQB43yGKEum3eW0P9N_nQ', 'UCbKo3HsaBOPhdRpgzqtRnqA',
+                              'UCy6kyFxaMqGtpE3pQTflK8A', 'UCQzdMyuz0Lf4zo4uGcEujFw',
+                              'UCPnlBOg4_NU9wdhRN-vzECQ', 'UCeKum6mhlVAjUFIW15mVBPg']
 
         # sort the target_list
         testing_target_ids.sort()
@@ -128,7 +81,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         """
         testing_target_username = "LastWeekTonight"
         try:
-            api=self._youtube_api()
+            api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
             name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
         except (HttpError, AttributeError):
@@ -139,10 +92,14 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         result = main_script.extract_user_name(self.INVALID_CODE, api)
         self.assertIsNone(result)
 
-        self.assertRaises(RuntimeError, main_script.extract_user_name, None, api)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, None, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name, self.TESTING_CHANNEL_ID, non_api)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          None, api)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          self.TESTING_CHANNEL_ID, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          None, None)
+        self.assertRaises(RuntimeError, main_script.extract_user_name,
+                          self.TESTING_CHANNEL_ID, non_api)
 
 
 class ArgsParserTestCases(unittest.TestCase):
@@ -170,7 +127,8 @@ class ArgsParserTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
         testing_degrees = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         for test_degree in testing_degrees:
-            response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-d', test_degree])
+            response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                          self.TESTING_API_KEY, '-d', test_degree])
             self.assertTrue(response.degree, int(test_degree))
 
         # Do not check degrees of 0 or less (non-sensical) - verify_arguments will do this.
@@ -178,12 +136,13 @@ class ArgsParserTestCases(unittest.TestCase):
     def test_args_filename(self):
         filename = 'mock_filename'
         parser = main_script.setup_arg_parser()
-        response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY, '-f', filename])
+        response = parser.parse_args([self.TESTING_CHANNEL_ARG,
+                                      self.TESTING_API_KEY, '-f', filename])
 
         self.assertEqual(response.filename, filename)
 
     def test_args_output(self):
-        testing_outputs = ['text', 'graphml', 'gml','gexf','yaml']
+        testing_outputs = ['text', 'graphml', 'gml', 'gexf', 'yaml']
         parser = main_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -193,7 +152,7 @@ class ArgsParserTestCases(unittest.TestCase):
         # Do not check bad choices - arg parser will catch this.
 
     def test_args_verbose(self):
-        testing_verbosity = [1,2,3,4]
+        testing_verbosity = [1, 2, 3, 4]
         parser = main_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -217,28 +176,31 @@ class ArgsVerificationTestCases(unittest.TestCase):
         parser = main_script.setup_arg_parser()
 
         try:
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '1', '-f', self.TESTING_FILENAME + '.' +
-                                                         self.TESTING_EXT])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', '.' + self.TESTING_FILENAME
-                                                         + '.' + self.TESTING_EXT])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', self.TESTING_FILENAME
-                                                         + '.' + self.TESTING_EXT + '.'])
-            args = main_script.verify_arguments(parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                         '-d', '99999', '-f', self.TESTING_FILENAME])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '1', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', '.' + self.TESTING_FILENAME + '.' + self.TESTING_EXT])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT + '.'])
+            main_script.verify_arguments(
+                parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                         '-d', '99999', '-f', self.TESTING_FILENAME])
         except AssertionError as e:
             self.fail(str(e.message))
 
-        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                  '-d', '0', '-f', self.TESTING_FILENAME])
-        self.assertRaises(AttributeError, main_script.verify_arguments, parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
-                                                  '-d', '-1', '-f', self.TESTING_FILENAME])
+        self.assertRaises(AttributeError, main_script.verify_arguments,
+                          parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                   '-d', '0', '-f', self.TESTING_FILENAME])
+        self.assertRaises(AttributeError, main_script.verify_arguments,
+                          parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
+                                   '-d', '-1', '-f', self.TESTING_FILENAME])
         for char in self.BAD_CHARS:
             self.assertRaises(Exception, main_script.verify_arguments,
                               [self.TESTING_CHANNEL_ID, self.API_KEY,
-                              '-f', self.TESTING_FILENAME + char])
+                               '-f', self.TESTING_FILENAME + char])
 
 
 class GraphGenerationTestCases(unittest.TestCase):
@@ -252,18 +214,18 @@ class GraphGenerationTestCases(unittest.TestCase):
     MOCK_GRAPH.add_node('H', name='Monty')
     MOCK_GRAPH.add_node('I', name='Zara')
     MOCK_GRAPH.add_node('F', name='Morgan')
-    MOCK_GRAPH.add_edge('A','B')
-    MOCK_GRAPH.add_edge('A','C')
-    MOCK_GRAPH.add_edge('A','D')
-    MOCK_GRAPH.add_edge('B','E')
-    MOCK_GRAPH.add_edge('C','F')
-    MOCK_GRAPH.add_edge('C','G')
-    MOCK_GRAPH.add_edge('G','H')
-    MOCK_GRAPH.add_edge('H','I')
-    MOCK_GRAPH.add_edge('E','A')
-    MOCK_GRAPH.add_edge('H','C')
-    MOCK_GRAPH.add_edge('I','D')
-    MOCK_GRAPH.add_edge('C','D')
+    MOCK_GRAPH.add_edge('A', 'B')
+    MOCK_GRAPH.add_edge('A', 'C')
+    MOCK_GRAPH.add_edge('A', 'D')
+    MOCK_GRAPH.add_edge('B', 'E')
+    MOCK_GRAPH.add_edge('C', 'F')
+    MOCK_GRAPH.add_edge('C', 'G')
+    MOCK_GRAPH.add_edge('G', 'H')
+    MOCK_GRAPH.add_edge('H', 'I')
+    MOCK_GRAPH.add_edge('E', 'A')
+    MOCK_GRAPH.add_edge('H', 'C')
+    MOCK_GRAPH.add_edge('I', 'D')
+    MOCK_GRAPH.add_edge('C', 'D')
 
     def setUp(self):
         # save the normal script api functions
@@ -271,17 +233,19 @@ class GraphGenerationTestCases(unittest.TestCase):
         self.old_names = main_script.extract_user_name
 
         # mock the api functions, so instead of youtube API they access the mock graph
-        def _mock_get_association_list(id, api):
+        def _mock_get_association_list(channel_id, _):
             association_list = []
             for edge in self.MOCK_GRAPH.edges():
-                if id in edge:
+                if channel_id in edge:
                     a, b = edge
-                    if id == a: association_list.append(b)
-                    else: association_list.append(a)
+                    if channel_id == a:
+                        association_list.append(b)
+                    else:
+                        association_list.append(a)
             return association_list
 
-        def _mock_extract_user_name(id, api):
-            return self.MOCK_GRAPH.node[id]['name']
+        def _mock_extract_user_name(channel_id, _):
+            return self.MOCK_GRAPH.node[channel_id]['name']
 
         main_script.get_association_list = _mock_get_association_list
         main_script.extract_user_name = _mock_extract_user_name
@@ -324,15 +288,18 @@ class GraphGenerationTestCases(unittest.TestCase):
 
 
 class DataOutputTestCases(unittest.TestCase):
+    """
+    Test the functions which convert graphs to other formats and write to console or file
+    """
 
     MOCK_GRAPH = Graph()
     MOCK_GRAPH.add_node('1', degree=0)
     MOCK_GRAPH.add_node('2', degree=1)
     MOCK_GRAPH.add_node('3', degree=2)
     MOCK_GRAPH.add_node('4', degree=1)
-    MOCK_GRAPH.add_edge('1','2')
-    MOCK_GRAPH.add_edge('2','3')
-    MOCK_GRAPH.add_edge('1','4')
+    MOCK_GRAPH.add_edge('1', '2')
+    MOCK_GRAPH.add_edge('2', '3')
+    MOCK_GRAPH.add_edge('1', '4')
 
     MOCK_OUTPUT = "This is mock output.\n"
 
@@ -341,15 +308,32 @@ class DataOutputTestCases(unittest.TestCase):
     STDOUT_REDIRECTION = 'output_std_file'
 
     def setUp(self):
+        """
+        change stdout to a file.
+        :return:
+        """
+        if os.path.exists(self.MOCK_FILE_OUTPUT):
+            os.remove(self.MOCK_FILE_OUTPUT)
         self.old_stdout = sys.stdout
         sys.stdout = open(self.STDOUT_REDIRECTION, 'w')
 
     def tearDown(self):
+        """
+        restore stdout and remove unneeded files
+        :return:
+        """
+        sys.stdout.close()
+        sys.stdout = self.old_stdout
+        if os.path.exists(self.STDOUT_REDIRECTION):
+            os.remove(self.STDOUT_REDIRECTION)
         if os.path.exists(self.MOCK_FILE_OUTPUT):
             os.remove(self.MOCK_FILE_OUTPUT)
-        sys.stdout = self.old_stdout
 
     def test_graph_conversion_to_text(self):
+        """
+        convert graph to text, as adjacency list.
+        :return:
+        """
         main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             output = f.read()
@@ -366,6 +350,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_graphml(self):
+        """
+        convert graph to graphml xml format
+        :return:
+        """
         main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -379,6 +367,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_gml(self):
+        """
+        convert graph to gml format
+        :return:
+        """
         main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -392,6 +384,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_json(self):
+        """
+        convert graph to a serialised json tree format useful for js documents.
+        :return:
+        """
         self.skipTest('Requires directed Graphs, which are outside the scope of the project.')
         main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
@@ -409,6 +405,10 @@ class DataOutputTestCases(unittest.TestCase):
         self.assertEqual(original_edges, result_edges)
 
     def test_graph_conversion_to_gexf(self):
+        """
+        convert graph to gexf xml format
+        :return:
+        """
         main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -422,6 +422,10 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_graph_conversion_to_yaml(self):
+        """
+        convert graph to yaml format
+        :return:
+        """
         main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
@@ -435,7 +439,12 @@ class DataOutputTestCases(unittest.TestCase):
                 continue
 
     def test_output(self):
-        CUSTOM_FILENAME = 'custom.out'
+        """
+        test the output management function. should only output to file if an output
+        format is given. otherwise output to console in adj list text.
+        :return:
+        """
+        custom_filename = 'custom.out'
 
         try:
             main_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
@@ -459,8 +468,8 @@ class DataOutputTestCases(unittest.TestCase):
             self.fail()
 
         try:
-            main_script.generate_output(self.MOCK_GRAPH, 'gml', CUSTOM_FILENAME)
-            result_graph = nx.read_gml(CUSTOM_FILENAME)
+            main_script.generate_output(self.MOCK_GRAPH, 'gml', custom_filename)
+            result_graph = nx.read_gml(custom_filename)
             for node in self.MOCK_GRAPH.nodes():
                 self.assertIn(node, result_graph.nodes())
             for edge in self.MOCK_GRAPH.edges():
@@ -474,10 +483,10 @@ class DataOutputTestCases(unittest.TestCase):
             self.fail()
 
         self.assertRaises(RuntimeError, main_script.generate_output,
-                          self.MOCK_GRAPH, 'fake_format', CUSTOM_FILENAME)
+                          self.MOCK_GRAPH, 'fake_format', custom_filename)
 
-        if os.path.exists(CUSTOM_FILENAME):
-            os.remove(CUSTOM_FILENAME)
+        if os.path.exists(custom_filename):
+            os.remove(custom_filename)
 
 if __name__ == '__main__':
     nose.run()
