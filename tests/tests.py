@@ -74,6 +74,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
     """
 
     TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
+    # remove key from developer console when released
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
     INVALID_CODE = '________________________'
 
@@ -99,7 +100,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
             api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
             results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api)
-        except (HttpError, ValueError):
+        except (HttpError, AttributeError):
             self.fail()
 
         # sort the results
@@ -126,9 +127,12 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         test that extract_user_name collects the user_name from a channel id with an api object.
         """
         testing_target_username = "LastWeekTonight"
-        api=self._youtube_api()
-        non_api = discovery.RawModel()      # object that is not actually an api.
-        name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
+        try:
+            api=self._youtube_api()
+            non_api = discovery.RawModel()      # object that is not actually an api.
+            name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
+        except (HttpError, AttributeError):
+            self.fail()
 
         self.assertEqual(testing_target_username, name)
 
@@ -201,6 +205,7 @@ class ArgsVerificationTestCases(unittest.TestCase):
 
     TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
 
+    # remove key from developer console when released
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
     BAD_KEY = '_______________________________________'
 
@@ -316,8 +321,6 @@ class GraphGenerationTestCases(unittest.TestCase):
                 edge = (edge[1], edge[0])
                 self.assertIn(edge, actual_graph.edges())
                 continue
-
-
 
 
 class DataOutputTestCases(unittest.TestCase):
