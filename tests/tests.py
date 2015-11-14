@@ -87,9 +87,10 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         :return:
         """
 
-        testing_target_ids = ['HBO','Cinemax','HBOBoxing','HBODocs',
-                              'Real Time with Bill Maher','GameofThrones','trueblood',
-                              'HBOLatino']
+        testing_target_ids = ['UCVTQuK2CaWaTgSsoNkn5AiQ','UCYbinjMxWwjRpp4WqgDqEDA',
+                              'UCWPQB43yGKEum3eW0P9N_nQ','UCbKo3HsaBOPhdRpgzqtRnqA',
+                              'UCy6kyFxaMqGtpE3pQTflK8A','UCQzdMyuz0Lf4zo4uGcEujFw',
+                              'UCPnlBOg4_NU9wdhRN-vzECQ','UCeKum6mhlVAjUFIW15mVBPg']
 
         # sort the target_list
         testing_target_ids.sort()
@@ -108,7 +109,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         self.assertEqual(len(results), len(testing_target_ids))
 
         for i in range(len(results)):
-            self.assertEqual(results[i][0], testing_target_ids[i])
+            self.assertEqual(results[i], testing_target_ids[i])
 
         self.assertRaises(AttributeError, main_script.get_association_list, None, api)
         self.assertRaises(AttributeError, main_script.get_association_list,
@@ -229,6 +230,90 @@ class ArgsVerificationTestCases(unittest.TestCase):
             self.assertRaises(Exception, main_script.verify_arguments,
                               [self.TESTING_CHANNEL_ID, self.API_KEY,
                               '-f', self.TESTING_FILENAME + char])
+
+
+class GraphGenerationTestCases(unittest.TestCase):
+    MOCK_GRAPH = Graph()
+    MOCK_GRAPH.add_node('A', name='Bob')
+    MOCK_GRAPH.add_node('B', name='Jim')
+    MOCK_GRAPH.add_node('D', name='Carey')
+    MOCK_GRAPH.add_node('C', name='Hurshel')
+    MOCK_GRAPH.add_node('E', name='Errol')
+    MOCK_GRAPH.add_node('G', name='Carol')
+    MOCK_GRAPH.add_node('H', name='Monty')
+    MOCK_GRAPH.add_node('I', name='Zara')
+    MOCK_GRAPH.add_node('F', name='Morgan')
+    MOCK_GRAPH.add_edge('A','B')
+    MOCK_GRAPH.add_edge('A','C')
+    MOCK_GRAPH.add_edge('A','D')
+    MOCK_GRAPH.add_edge('B','E')
+    MOCK_GRAPH.add_edge('C','F')
+    MOCK_GRAPH.add_edge('C','G')
+    MOCK_GRAPH.add_edge('G','H')
+    MOCK_GRAPH.add_edge('H','I')
+    MOCK_GRAPH.add_edge('E','A')
+    MOCK_GRAPH.add_edge('H','C')
+    MOCK_GRAPH.add_edge('I','D')
+    MOCK_GRAPH.add_edge('C','D')
+
+    def setUp(self):
+        # save the normal script api functions
+        self.old_assoc = main_script.get_association_list
+        self.old_names = main_script.extract_user_name
+
+        # mock the api functions, so instead of youtube API they access the mock graph
+        def _mock_get_association_list(id, api):
+            association_list = []
+            for edge in self.MOCK_GRAPH.edges():
+                if id in edge:
+                    a, b = edge
+                    if id == a: association_list.append(b)
+                    else: association_list.append(a)
+            return association_list
+
+        def _mock_extract_user_name(id, api):
+            return self.MOCK_GRAPH.node[id]['name']
+
+        main_script.get_association_list = _mock_get_association_list
+        main_script.extract_user_name = _mock_extract_user_name
+
+    def tearDown(self):
+        main_script.get_association_list = self.old_assoc
+        main_script.extract_user_name = self.old_names
+
+    def test_create_graph(self):
+        expected_graph = nx.Graph()
+        expected_graph.add_node('Bob', degree=0)
+        expected_graph.add_node('Jim', degree=1)
+        expected_graph.add_node('Carey', degree=1)
+        expected_graph.add_node('Hurshel', degree=1)
+        expected_graph.add_node('Errol', degree=2)
+        expected_graph.add_node('Morgan', degree=2)
+        expected_graph.add_node('Carol', degree=2)
+        expected_graph.add_node('Monty', degree=3)
+        expected_graph.add_node('Zara', degree=4)
+        expected_graph.add_path(['Bob', 'Jim', 'Errol'])
+        expected_graph.add_path(['Bob', 'Hurshel', 'Carol', 'Monty', 'Zara'])
+        expected_graph.add_path(['Bob', 'Carey', 'Zara'])
+        expected_graph.add_path(['Monty', 'Hurshel', 'Carey'])
+        expected_graph.add_edge('Bob', 'Errol')
+        expected_graph.add_edge('Hurshel', 'Morgan')
+
+        actual_graph = nx.Graph()
+
+        main_script.build_graph(actual_graph, None, max_depth=7, initial_channel='A')
+
+        for node in expected_graph.nodes():
+            self.assertIn(node, actual_graph.nodes())
+        for edge in expected_graph.edges():
+            try:
+                self.assertIn(edge, actual_graph.edges())
+            except AssertionError:
+                edge = (edge[1], edge[0])
+                self.assertIn(edge, actual_graph.edges())
+                continue
+
+
 
 
 class DataOutputTestCases(unittest.TestCase):

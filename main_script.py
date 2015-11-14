@@ -5,31 +5,27 @@ from __future__ import absolute_import, print_function, nested_scopes, generator
 
 __author__ = 'Roland'
 
-# TODO: change output arguments, if no output argument then no record to file and show only adjacency list to console, otherwise write formatted output to file.
-
 from logging import getLogger, StreamHandler, Formatter
-from logging import ERROR, INFO
+from logging import INFO
+#from multiprocessing import JoinableQueue as JQueue
+try:
+    from queue import Queue
+    from queue import Empty as EmptyQueueException
+except ImportError:
+    from Queue import Queue
+    from Queue import Empty as EmptyQueueException
 
-import itertools
-import random
-import multiprocessing
-#  from Queue import Empty as EmptyQueueException
 import argparse
+from itertools import cycle
 import json
 
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 
-
 import networkx
 from networkx.readwrite import json_graph
-import matplotlib.pyplot as plt
 
-random.seed(-1)
-
-
-GENERAL_MESSAGE = '%(message)s'
-DETAILED_MESSAGE = '%(asctime)-15s --- %(levelname)-6s : %(message)s'
+DETAILED_MESSAGE = '%(asctime)-15s >>> %(funcName)s, line:%(lineno)d --- %(message)s'
 
 API_YOUTUBE_SERVICE = 'youtube'
 API_VERSION = 'v3'
@@ -50,29 +46,12 @@ def prepare_logger(verbosity):
     else:
         logger = getLogger('youtube_user_graph')
         logger.verbosity = verbosity
-        if verbosity == 1:
-            logger.setLevel(ERROR)
-            formatter = Formatter(GENERAL_MESSAGE)
-        else:
-            logger.setLevel(INFO)
-            if verbosity >= 4:
-                formatter = Formatter(DETAILED_MESSAGE)
-            else:
-                formatter = Formatter(GENERAL_MESSAGE)
+        logger.setLevel(INFO)
+        formatter = Formatter(DETAILED_MESSAGE)
         console_handler = StreamHandler()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     return logger
-
-
-def declare_error(logger, message):
-    """
-    makes the logger show an error message
-    :param message: the error message to show
-    :return:
-    """
-    if logger is not None:
-        logger.error(message)
 
 
 def declare_degree(logger, degree):
@@ -82,8 +61,14 @@ def declare_degree(logger, degree):
     :return:
     """
     if logger is not None:
-        if logger.verbosity >= 2:
+        if logger.verbosity >= 1:
             logger.info('Degree: #{}'.format(degree))
+
+
+def declare_warning(logger, warning):
+    if logger is not None:
+        if logger.verbosity >= 1:
+            logger.warning(warning)
 
 
 def declare_processed_users(logger, user_count):
@@ -151,10 +136,9 @@ def setup_arg_parser():
                 help="""Display additional information to the console during processing.
                      The default (if ommitted) is to not display any information.
                      Possible choices are:
-                     1 - Non-critical Errors and warnings.
-                     2 - Total users processed, the current degree of separation being processed.
-                     3 - New users, and relationships between users, found.
-                     4 - Fully formatted logging with date and time. Useful for bug reports.""")
+                     1 - current degree of separation being processed.
+                     2 - Total users processed.
+                     3 - New users, and relationships between users, found.""")
     parser.add_argument('-s', '--show_graph', action='store_true', default=False,
                         help="Display a visual depiction of the graph in a separate window, "
                         + "when processing is complete.")
@@ -177,7 +161,7 @@ def verify_arguments(parser, args):
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
-            raise AttributeError("filename contains invalid symbols: \"\\|/?,<>:;'{[}]*&^%")
+            raise AttributeError(" '-f <filename>': <filename> contains an invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
     def _assert_valid_degree():
         # arguments is from outer scope
@@ -185,7 +169,7 @@ def verify_arguments(parser, args):
             deg = int(arguments.degree)
             assert deg > 0
         except (AssertionError, ValueError):
-            raise AttributeError("Degree should be a positive integer.")
+            raise AttributeError(" '-d <degree>': <degree> should be a positive integer.")
 
     def _assert_valid_channel_id():
         # arguments is from outer scope
@@ -202,7 +186,14 @@ def verify_arguments(parser, args):
             assert 'items' in response
             assert len(response['items']) > 0
         except AssertionError:
-            raise AttributeError("Could not verify the channel id. Please check this id is correct.")
+            raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
+                                 "id is correct.\nYou may not use a legacy username - only use a " +
+                                 "channel id.\nChannel Ids can be found at urls such as " +
+                                 "'https://www.youtube.com/channel/<id>'.")
+        except HttpError as h:
+            if "HttpError 400" in str(h):
+                raise RuntimeError("""Error in create_youtube_api(key):
+                                   is key a valid api_key? is key spelt correctly?""")
 
     if args is None:
         arguments = parser.parse_args()
@@ -222,12 +213,16 @@ def create_youtube_api(developerKey=None):
     :param developerKey:
     :return:
     """
-    if developerKey is None:
-        raise HttpError('Error: developerKey cannot be null.')
-    api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
-                          developerKey=developerKey)
-    return api
-
+    try:
+        if developerKey is None:
+            raise HttpError(" '<api_key>' developerKey cannot be null.")
+        api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
+                              developerKey=developerKey)
+        return api
+    except HttpError as h:
+        if "HttpError 400" in str(h):
+            raise RuntimeError("""Error in create_youtube_api(key):
+                               is key a valid api_key? is key spelt correctly?""")
 
 
 def get_association_list(id, api):
@@ -239,24 +234,30 @@ def get_association_list(id, api):
     """
 
     if id is None or api is None:
-        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+        raise RuntimeError("""Error in get_association_list(i, a):
+                           'i' or 'a' parameter was None.""")
     try:
         result = api.channels().list(part='brandingSettings', id=id).execute()
         if len(result['items']) == 0:
-            raise AttributeError('No channel information found. Please check the channel id '+
-                                'is correct\nchannel id=' + str(id))
+            return None
         associate_list = list()
         channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
         for channel in channels:
-            associate_list.append( (extract_user_name(channel, api), channel) )
+            associate_list.append( channel )
         return associate_list
-
     except AttributeError as a:
-        if 'has no attribute' in a.message:
-            raise AttributeError('api must be a google api object. Please check the correct' +
-                                 ' object was supplied.')
+        if 'has no attribute' in str(a):
+            raise RuntimeError("""Error in get_association_list(i, a):
+                               was expecting 'a' to be a youtube api client.""")
         else:
             raise a
+    except HttpError as h:
+        if "HttpError 400" in str(h):
+            raise RuntimeError("""Error in get_association_list(i, a):
+                               failed request to youtube api - check the api_key is correctly
+                               spelt.""")
+    except KeyError as k:
+        return None
 
 
 def extract_user_name(id, api):
@@ -267,141 +268,27 @@ def extract_user_name(id, api):
     :return: the user name.
     """
     if id is None or api is None:
-        raise AttributeError('id must be a channel id and api must be a googleapi object.')
+        raise RuntimeError("""Error in extract_user_name(i, a):
+                           'i' or 'a' parameter was None.""")
     try:
         result = api.channels().list(part='brandingSettings', id=id).execute()
         if len(result['items']) == 0:
-            raise AttributeError('No channel information found. Please check the channel id '+
-                                'is correct\nchannel id=' + str(id))
+            return None
         title = result['items'][0]['brandingSettings']['channel']['title']
         return title
     except AttributeError as a:
-        if 'has no attribute' in a.message:
-            raise AttributeError('api must be a google api object. Please check the correct' +
-                                 ' object was supplied.')
+        if 'has no attribute' in str(a):
+            raise RuntimeError("""Error in extract_user_name(i, a):
+                               was expecting 'a' to be a youtube api client.""")
         else:
             raise a
-
-
-def generate_colours(value):
-    """
-    create a list of random colours.
-    :param value: an integer influencing how many colours to create
-    :return: a list of (value + 1) colours
-    """
-
-    def create_colour_code_permutations(value_range):
-        """
-        # create a list of all colour code permutations, depending on a given range of values.
-        :return: list of colour codes
-        """
-        permutation_list = list()
-        for i in itertools.product(value_range, value_range, value_range):
-            # convert from (R, G, B)decimal to '#RRGGBB'hex
-            code = '#' + hex(i[0])[2:].zfill(2) + hex(i[1])[2:].zfill(2) + hex(i[2])[2:].zfill(2)
-            permutation_list.append(code)
-        return permutation_list
-
-    if not isinstance(value, int):
-        raise TypeError("Parameter must be Integer.")
-    if value <= 0:
-        raise ValueError("Parameter must be greater than or equal to 1.")
-    color_list = list()
-    # for x colours required, there are x^3-2 colours produced
-    factor = 2
-    # rnumber of degrees is (0, ..., n) thus number of colours returned = n + 1
-    while value + 1 > ((factor * factor * factor) - 2):
-        factor += 1
-    scale_factor = int((256.0 / (factor - 1) - 0.1))
-    scale = range(0, 256, scale_factor)
-    code_list = create_colour_code_permutations(scale)
-    # dump existing colours, and black and white
-    del code_list[0]
-    del code_list[-1]
-    # create list of colours, unique per degree of separation
-
-    while value >= 0:
-        index = random.randint(0, len(code_list) - 1)
-        color_list.append(code_list[index])
-        del code_list[index]
-        value -= 1
-
-    return color_list
-
-
-def generate_relationship_graph(graph_nodes, max_degree, first_user, logger):
-    """
-    creates a graphing object representing you tube users and associations.
-    :param graph_nodes: the object storing the graph nodes and edges.
-        must conform to networkx.Graph object API.
-    :return: a networkX graph object, containg users as nodes and relationships as edges.
-    """
-
-    def _queue_next_users__to_do(user_list, queue):
-        """
-        transfer list of next users into the queue
-        :param user_list:   list of next users
-        :param queue:       queue to transfer to
-        :return:
-        """
-        while len(users_to_do) > 0:
-            user = user_list.pop()
-            queue.put(user)
-        return
-
-    def _process_colleague(origin, current_user, current_degree, user_graph, logger):
-        """
-        add a colleague to the nodes and edges as needed. enlist the colleague if not already
-        processed.
-        :param origin:          user this colleague relates to
-        :param current_user:    the colleague
-        :param user_graph:      the graph to add nodes and edges to.
-        :return:
-        """
-        if not user_graph.has_node(current_user):
-            user_graph.add_node(current_user, degree=current_degree)
-            declare_new_node(logger, current_user)
-        if not user_graph.has_edge(origin, current_user) or \
-                user_graph.has_edge(current_user, origin):
-            user_graph.add_edge(origin, current_user)
-            declare_new_edge(logger, origin, current_user)
-        return
-
-    # pylint: disable=maybe-no-member
-    user_queue = multiprocessing.Queue()
-    users_processed = list()
-    users_to_do = list()
-    users_to_do.append(first_user)
-    degree = 1
-
-    while degree <= max_degree:
-        declare_degree(logger, degree)
-
-        _queue_next_users__to_do(users_to_do, user_queue)
-
-        while True:
-
-            # unload the next users from the queue.
-            if user_queue.empty() and user_queue.qsize() < 1:
-                # ran out of next_users - stop analyzing this level
-                break
-
-            user_name, url = user_queue.get()
-            # list of (name, url) tuples with edge to this user url.
-            associations = get_association_list(url)
-            for colleague in associations:
-                colleague_name, _ = colleague
-                _process_colleague(user_name, colleague_name, degree, graph_nodes, logger)
-                if degree < max_degree \
-                        and colleague not in users_processed \
-                        and colleague not in users_to_do:
-                    users_to_do.append(colleague)
-
-            users_processed.append((user_name, url))
-            declare_processed_users(logger, len(users_processed))
-
-        degree += 1
-    return graph_nodes
+    except HttpError as h:
+        if "HttpError 400" in str(h):
+            raise RuntimeError("""Error in extract_user_name(i, a):
+                               failed request to youtube api - check the api_key is correctly
+                               spelt.""")
+    except KeyError as k:
+        return None
 
 
 def convert_graph_to_text(graph, filename):
@@ -490,11 +377,12 @@ def generate_output(graph, output_format, filename):
     :return:
     """
     if output_format is None:
-        text = networkx.generate_adjlist(graph)
-        print (text)
+        for text in networkx.generate_adjlist(graph):
+
+            print (text.encode('ascii', 'ignore'))
     elif output_format not in OUTPUT_FORMATS:
-        raise AttributeError("The output format is not recognised. requested format was: "
-                             + output_format)
+        raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value.
+                           value of 'o'=""" + output_format)
     else:
         # temporary mapping of format codes to formatter funcs.
         OUTPUT_FUNCS = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
@@ -509,14 +397,90 @@ def generate_output(graph, output_format, filename):
         try:
             output_mapping[output_format](graph, filename)
         except KeyError:
-            raise AttributeError("""The output format was not recognised or did not have an
-                                 associated conversion function. Requested format was: """ +
-                                 output_format)
-
-
-
-
+            raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value
+                           or lacks a subroutine reference. value of 'o'=""" + output_format)
     return
+
+
+def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
+    """
+    given an initial graph and node, build a complete tree graph out to a given depth.
+    :param graph: the networkx graph object to work with.
+    :param max_depth: furthermost depth to build to, e.g. 1 gets immediate associates,
+        2 gets associates of immediate associates, etc.
+    :param initial_channel: the channel id for the initial node
+    :param logger: logging object for generating verbose messages
+    :return:
+    """
+    if initial_channel is None:
+        return
+
+    def _transfer_next_ids_to_queue():
+        while len(next_channel_ids) > 0:
+            id = next_channel_ids.pop()
+            if id not in processed_ids:
+                id_queue.put(id)
+        return
+
+    def _process_associates():
+        associates = get_association_list(current_id, api)
+        if associates is None:
+            declare_warning(logger, """Could not retrieve this channel's associates. This
+                            information may be unavailable at this time.
+                            channel id = """ + current_id)
+        else:
+            for assoc_id in associates:
+                assoc_name = extract_user_name(assoc_id, api)
+                if assoc_name is not None:
+                    if assoc_name not in graph.nodes():
+                        graph.add_node(assoc_name, degree=depth)
+                        declare_new_node(logger, assoc_name)
+                    if (current_name, assoc_name) not in graph.edges() and \
+                            (assoc_name, current_name) not in graph.edges():
+                        graph.add_edge(current_name, assoc_name)
+                        declare_new_edge(logger, current_name, assoc_name)
+                    if assoc_id not in next_channel_ids:
+                        next_channel_ids.append( (assoc_name, assoc_id) )
+                else:
+                    declare_warning(logger, """Could not retrieve this channel's name. This
+                                    information may be unavailable at this time.
+                                    channel id = """ + assoc_id)
+
+    id_queue = Queue()
+    processed_ids = set()
+    next_channel_ids = list()
+    current_name = extract_user_name(initial_channel, api)
+    if current_name is None:
+        raise RuntimeError("""Could not retrieve the initial channel's name. The channel may not
+                           have the required information set to public.""")
+    graph.add_node(current_name, degree=0)
+    id_queue.put( (current_name, initial_channel) )
+    depth = 1
+    while depth <= max_depth:
+        declare_degree(logger, depth)
+        while id_queue.qsize() > 0 and not id_queue.empty():
+            current_name, current_id, = id_queue.get()
+            _process_associates()
+            processed_ids.add(current_id)
+            declare_processed_users(logger, len(processed_ids))
+            #id_queue.task_done()
+        _transfer_next_ids_to_queue()
+        depth += 1
+    while not id_queue.empty():
+        try:
+            id_queue.get(timeout=0.001)
+        except EmptyQueueException:
+            continue
+    #id_queue.close()
+    return
+
+
+def build_colour_generator():
+
+    yield '#ffffff'
+    colour_list = cycle(['#ffff22', '#ff44ff', '#22ffff'])
+    while True:
+        yield next(colour_list)
 
 
 def main_function():
@@ -525,36 +489,33 @@ def main_function():
     :return:
     """
 
-    parser = setup_arg_parser()
-    arguments = verify_arguments(parser, None)
-    logger = prepare_logger(arguments.verbose)
-    first_user = (extract_first_user_name(arguments.url), arguments.url)
-    max_degree = arguments.degree
+    try:
+        parser = setup_arg_parser()
+        arguments = verify_arguments(parser, None)
+        logger = prepare_logger(arguments.verbose)
+        api = create_youtube_api(developerKey=arguments.api_key)
+        # colour generator
 
-    youtube_user_graph = networkx.Graph()
-    youtube_user_graph.clear()
+        youtube_user_graph = networkx.Graph()
+        youtube_user_graph.clear()
+        build_graph(youtube_user_graph, api, max_depth=arguments.degree,
+                    initial_channel=arguments.id, logger=logger)
 
-    youtube_user_graph.add_node(first_user[0], degree=0)
-    generate_relationship_graph(youtube_user_graph, max_degree, first_user, 0)
-
-    output = convert_graph_to_text(youtube_user_graph)
-    if arguments.output == 'text':
-        output = convert_graph_to_text(youtube_user_graph)
-    elif arguments.output == 'xml':
-        output = convert_graph_to_xml(youtube_user_graph)
-
-    if arguments.filename is not None:
-        generate_file(arguments.filename, output)
-    else:
-        print ("Graph output:\n")
-        print (output)
-
-    if arguments.show_graph:
-        colors = generate_colours(max_degree)
-        networkx.draw_spring(youtube_user_graph,
-                             node_color=[colors[youtube_user_graph.node[node]['degree']]
-                                         for node in youtube_user_graph])
-        plt.show()
+        generate_output(youtube_user_graph, arguments.output, arguments.filename)
+        if arguments.show_graph:
+            colours = build_colour_generator()
+            colours_dict = dict()
+            for i in range(arguments.degree + 1):
+                colours_dict[i] = next(colours)
+            import matplotlib.pyplot as plt
+            # labels=networkx.draw_networkx_labels(
+            #     youtube_user_graph,pos=networkx.spring_layout(youtube_user_graph))
+            networkx.draw_networkx(youtube_user_graph, with_labels=True,
+                                 node_color=[colours_dict[youtube_user_graph.node[node]['degree']]
+                                             for node in youtube_user_graph])
+            plt.show()
+    except (AttributeError, HttpError) as e:
+        print ('ERROR: ' + str(e) )
 
 if __name__ == '__main__':
     main_function()
