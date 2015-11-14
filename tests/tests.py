@@ -18,7 +18,7 @@ from networkx.readwrite import json_graph
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 
-import main_script
+from scripts import main_script
 
 
 def scrape_elements(soup, params_hierarchy):

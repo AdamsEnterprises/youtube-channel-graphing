@@ -3,8 +3,6 @@ Main script for tge youtube graphing project.
 """
 from __future__ import absolute_import, print_function, nested_scopes, generators, with_statement
 
-__author__ = 'Roland'
-
 from logging import getLogger, StreamHandler, Formatter
 from logging import INFO
 #from multiprocessing import JoinableQueue as JQueue
