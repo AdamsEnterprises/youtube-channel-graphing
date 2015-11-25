@@ -65,6 +65,12 @@ def declare_degree(logger, degree):
 
 
 def declare_warning(logger, warning):
+    """
+    log a warning message.
+    :param logger: the Logger object for message output.
+    :param warning: the message.
+    :return:
+    """
     if logger is not None:
         if logger.verbosity >= 1:
             logger.warning(warning)
@@ -119,7 +125,7 @@ def setup_arg_parser():
                         help="The api key with which to access the youtube API.")
     parser.add_argument('-d', '--degree', action='store', type=int, default=1,
                         help="The degree of separation to process to. Must be an integer" +
-                             " greater than 0. Default is 1.")
+                        " greater than 0. Default is 1.")
     parser.add_argument('-f', '--filename', action='store', type=str,
                         default=DEFAULT_OUTPUT_FILENAME,
                         help="""A file to record graphing data to. Must be a valid name for the
@@ -153,6 +159,10 @@ def verify_arguments(parser, args):
     """
 
     def _assert_valid_filename():
+        """
+        check the filename does not have invalid characters.
+        :return:
+        """
         # arguments is from outer scope
         try:
             # check if filename is valid
@@ -160,11 +170,14 @@ def verify_arguments(parser, args):
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
-            # TODO: coverage of exceptions
             raise AttributeError(" '-f <filename>': <filename> contains an" +
                                  " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
     def _assert_valid_degree():
+        """
+        check the supplied degree is a positive integer.
+        :return:
+        """
         # arguments is from outer scope
         try:
             deg = int(arguments.degree)
@@ -173,6 +186,10 @@ def verify_arguments(parser, args):
             raise AttributeError(" '-d <degree>': <degree> should be a positive integer.")
 
     def _assert_valid_channel_id():
+        """
+        check the channel id is for a real channel.
+        :return:
+        """
         # arguments is from outer scope
         try:
             # check for malformed urls
@@ -187,13 +204,12 @@ def verify_arguments(parser, args):
             assert 'items' in response
             assert len(response['items']) > 0
         except AssertionError:
-            # TODO: Coverage of exceptions
             raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
                                  "id is correct.\nYou may not use a legacy username - only use a " +
                                  "channel id.\nChannel Ids can be found at urls such as " +
                                  "'https://www.youtube.com/channel/<id>'.")
-        except HttpError as h:
-            if "HttpError 400" in str(h):
+        except HttpError as http_excp:
+            if "HttpError 400" in str(http_excp):
                 raise RuntimeError("""Error in create_youtube_api(key):
                                    is key a valid api_key? is key spelt correctly?""")
 
@@ -221,9 +237,8 @@ def create_youtube_api(developer_key=None):
         api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
                               developerKey=developer_key)
         return api
-    # TODO: coverage of exceptions
-    except HttpError as h:
-        if "HttpError 400" in str(h):
+    except HttpError as http_excp:
+        if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in create_youtube_api(key):
                                is key a valid api_key? is key spelt correctly?""")
 
@@ -248,15 +263,14 @@ def get_association_list(channel_id, api):
         for channel in channels:
             associate_list.append(channel)
         return associate_list
-    except AttributeError as a:
-        # TODO: coverage of exceptions
-        if 'has no attribute' in str(a):
+    except AttributeError as att_excp:
+        if 'has no attribute' in str(att_excp):
             raise RuntimeError("""Error in get_association_list(i, a):
                                was expecting 'a' to be a youtube api client.""")
         else:
-            raise a
-    except HttpError as h:
-        if "HttpError 400" in str(h):
+            raise att_excp
+    except HttpError as http_excp:
+        if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in get_association_list(i, a):
                                failed request to youtube api - check the api_key is correctly
                                spelt.""")
@@ -280,15 +294,14 @@ def extract_user_name(channel_id, api):
             return None
         title = result['items'][0]['brandingSettings']['channel']['title']
         return title
-    except AttributeError as a:
-        if 'has no attribute' in str(a):
-            # TODO: coverage of exceptions
+    except AttributeError as att_excp:
+        if 'has no attribute' in str(att_excp):
             raise RuntimeError("""Error in extract_user_name(i, a):
                                was expecting 'a' to be a youtube api client.""")
         else:
-            raise a
-    except HttpError as h:
-        if "HttpError 400" in str(h):
+            raise att_excp
+    except HttpError as http_excp:
+        if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in extract_user_name(i, a):
                                failed request to youtube api - check the api_key is correctly
                                spelt.""")
@@ -368,8 +381,8 @@ def convert_graph_to_json(graph, filename):
             root_node = [node, graph.node[node]['degree']]
             break
     data = json_graph.tree_data(graph, root=root_node[0])
-    with open(filename, 'w') as f:
-        f.write(json.dumps(data))
+    with open(filename, 'w') as f_handle:
+        f_handle.write(json.dumps(data))
     return
 
 
@@ -384,7 +397,7 @@ def generate_output(graph, output_format, filename):
     if output_format is None:
         for text in networkx.generate_adjlist(graph):
 
-            print (text.encode('ascii', 'ignore'))
+            print(text.encode('ascii', 'ignore'))
     elif output_format not in OUTPUT_FORMATS:
         raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value.
                            value of 'o'=""" + output_format)
@@ -421,6 +434,10 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         return
 
     def _transfer_next_ids_to_queue():
+        """
+        queue the next se of ids to process.
+        :return:
+        """
         while len(next_channel_ids) > 0:
             channel_id = next_channel_ids.pop()
             if channel_id not in processed_ids:
@@ -428,9 +445,12 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         return
 
     def _process_associates():
+        """
+        get the list of associates, produce graph nodes and edges, and prep for future processing.
+        :return:
+        """
         associates = get_association_list(current_id, api)
         if associates is None:
-            # TODO: coverage
             declare_warning(logger, """Could not retrieve this channel's associates. This
                             information may be unavailable at this time.
                             channel id = """ + current_id)
@@ -449,7 +469,6 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
                     if assoc_id not in next_channel_ids:
                         next_channel_ids.append((assoc_name, assoc_id))
                 else:
-                    # TODO: coverage
                     declare_warning(logger, """Could not retrieve this channel's name. This
                                     information may be unavailable at this time.
                                     channel id = """ + assoc_id)
@@ -478,13 +497,16 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         try:
             id_queue.get(timeout=0.001)
         except EmptyQueueException:
-            # TODO: coverage
             continue
     # id_queue.close()
     return
 
 
 def build_colour_generator():
+    """
+    create a generator for assigning colours.
+    :return: generator, for colours.
+    """
     # TODO: coverage
     yield '#ffffff'
     colour_list = cycle(['#ffff22', '#ff44ff', '#22ffff'])
@@ -523,8 +545,8 @@ def main_function():
                                    node_color=[colours_dict[youtube_user_graph.node[node]['degree']]
                                                for node in youtube_user_graph])
             plt.show()
-    except (AttributeError, HttpError) as e:
-        print ('ERROR: ' + str(e))
+    except (AttributeError, HttpError) as excp:
+        print('ERROR: ' + str(excp))
 
 if __name__ == '__main__':
     main_function()
