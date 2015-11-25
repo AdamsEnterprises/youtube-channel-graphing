@@ -100,6 +100,27 @@ See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
     * yaml: YAML format
     * text: edge list format
     * none / null: edge list format
+    
+- basic behaviour of main runner:
+
+    does not produce errors upon the following situations:
+    
+    * valid api key
+    * valid channel id
+    * valid degree
+    * valid verbosity
+    * valid filename
+    
+    produces exceptions upon the following:
+    
+    * api is none
+    * invalid initiial channel id
+    * invalid degree
+    * invalid filename
+    
+- youtube api creater function
+
+    sould return an api or throw exception.
 
 
 ## Features to not test:
@@ -114,6 +135,6 @@ See [issue #35.](https://github.com/rask004/youtube-channel-graphing/issues/35)
 
 - bad choices for verbosity or output formats - the arg parser will do this itself.
 
-- creation and validation of google api objects - outside of scope.
+- validation of google api objects - outside of scope.
 
 - json data output - requires multidirectional graphs, not yet implemented.

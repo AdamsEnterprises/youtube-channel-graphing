@@ -233,7 +233,7 @@ def create_youtube_api(developer_key=None):
     """
     try:
         if developer_key is None:
-            raise HttpError(" '<api_key>' developerKey cannot be null.")
+            raise RuntimeError(" '<api_key>' developerKey cannot be null.")
         api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
                               developerKey=developer_key)
         return api
