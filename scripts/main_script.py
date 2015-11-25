@@ -251,17 +251,20 @@ def get_association_list(channel_id, api):
     :return: a list of (associated channel name, associated channel id).
     """
 
+    def _create_associate_list():
+        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
+        if len(result['items']) == 0:
+            return None
+        channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
+        for channel in channels:
+            associate_list.append(channel)
+
     if channel_id is None or api is None:
         raise RuntimeError("""Error in get_association_list(i, a):
                            'i' or 'a' parameter was None.""")
     try:
-        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
-        if len(result['items']) == 0:
-            return None
         associate_list = list()
-        channels = result['items'][0]['brandingSettings']['channel']['featuredChannelsUrls']
-        for channel in channels:
-            associate_list.append(channel)
+        _create_associate_list()
         return associate_list
     except AttributeError as att_excp:
         if 'has no attribute' in str(att_excp):
@@ -285,14 +288,18 @@ def extract_user_name(channel_id, api):
     :param api: the google api object.
     :return: the user name.
     """
+
+    def _find_title():
+        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
+        if len(result['items']) == 0:
+            return None
+        return result['items'][0]['brandingSettings']['channel']['title']
+
     if channel_id is None or api is None:
         raise RuntimeError("""Error in extract_user_name(i, a):
                            'i' or 'a' parameter was None.""")
     try:
-        result = api.channels().list(part='brandingSettings', id=channel_id).execute()
-        if len(result['items']) == 0:
-            return None
-        title = result['items'][0]['brandingSettings']['channel']['title']
+        title = _find_title()
         return title
     except AttributeError as att_excp:
         if 'has no attribute' in str(att_excp):
