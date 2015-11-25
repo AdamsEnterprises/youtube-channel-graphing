@@ -160,6 +160,7 @@ def verify_arguments(parser, args):
                 for symbol in "\"\\|/?,<>:;'{[}]*&^%":
                     assert symbol not in arguments.filename
         except AssertionError:
+            # TODO: coverage of exceptions
             raise AttributeError(" '-f <filename>': <filename> contains an" +
                                  " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
@@ -186,6 +187,7 @@ def verify_arguments(parser, args):
             assert 'items' in response
             assert len(response['items']) > 0
         except AssertionError:
+            # TODO: Coverage of exceptions
             raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
                                  "id is correct.\nYou may not use a legacy username - only use a " +
                                  "channel id.\nChannel Ids can be found at urls such as " +
@@ -219,6 +221,7 @@ def create_youtube_api(developer_key=None):
         api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
                               developerKey=developer_key)
         return api
+    # TODO: coverage of exceptions
     except HttpError as h:
         if "HttpError 400" in str(h):
             raise RuntimeError("""Error in create_youtube_api(key):
@@ -246,6 +249,7 @@ def get_association_list(channel_id, api):
             associate_list.append(channel)
         return associate_list
     except AttributeError as a:
+        # TODO: coverage of exceptions
         if 'has no attribute' in str(a):
             raise RuntimeError("""Error in get_association_list(i, a):
                                was expecting 'a' to be a youtube api client.""")
@@ -278,6 +282,7 @@ def extract_user_name(channel_id, api):
         return title
     except AttributeError as a:
         if 'has no attribute' in str(a):
+            # TODO: coverage of exceptions
             raise RuntimeError("""Error in extract_user_name(i, a):
                                was expecting 'a' to be a youtube api client.""")
         else:
@@ -425,6 +430,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
     def _process_associates():
         associates = get_association_list(current_id, api)
         if associates is None:
+            # TODO: coverage
             declare_warning(logger, """Could not retrieve this channel's associates. This
                             information may be unavailable at this time.
                             channel id = """ + current_id)
@@ -443,6 +449,7 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
                     if assoc_id not in next_channel_ids:
                         next_channel_ids.append((assoc_name, assoc_id))
                 else:
+                    # TODO: coverage
                     declare_warning(logger, """Could not retrieve this channel's name. This
                                     information may be unavailable at this time.
                                     channel id = """ + assoc_id)
@@ -471,13 +478,14 @@ def build_graph(graph, api, max_depth=1, initial_channel=None, logger=None):
         try:
             id_queue.get(timeout=0.001)
         except EmptyQueueException:
+            # TODO: coverage
             continue
     # id_queue.close()
     return
 
 
 def build_colour_generator():
-
+    # TODO: coverage
     yield '#ffffff'
     colour_list = cycle(['#ffff22', '#ff44ff', '#22ffff'])
     while True:
@@ -489,7 +497,7 @@ def main_function():
     the runner function of the main_script
     :return:
     """
-
+    # TODO: coverage
     try:
         parser = setup_arg_parser()
         arguments = verify_arguments(parser, None)

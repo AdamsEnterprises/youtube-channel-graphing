@@ -286,6 +286,14 @@ class GraphGenerationTestCases(unittest.TestCase):
                 self.assertIn(edge, actual_graph.edges())
                 continue
 
+    def test_no_initial_channel(self):
+
+        actual_graph = nx.Graph()
+
+        main_script.build_graph(actual_graph, None, max_depth=7, initial_channel=None)
+
+        self.assertEqual(actual_graph.number_of_nodes(), 0)
+
 
 class DataOutputTestCases(unittest.TestCase):
     """
@@ -487,6 +495,39 @@ class DataOutputTestCases(unittest.TestCase):
 
         if os.path.exists(custom_filename):
             os.remove(custom_filename)
+
+
+class OtherTestCases(unittest.TestCase):
+
+    TESTING_CHANNEL_ID = 'UC3XTzVzaHQEd30rQbuvCtTQ'
+
+    # remove key from developer console when released
+    API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
+
+    def setUp(self):
+        self.old_verify = main_script.verify_arguments
+        def mock_verify(parser, args):
+            arguments = parser.parse_args([self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '4'])
+            return arguments
+        main_script.verify_arguments = mock_verify
+
+    def tearDown(self):
+        main_script.verify_arguments = self.old_verify
+        if os.path.exists('yaml.graph'):
+            os.remove('yaml.graph')
+
+    def test_colour_generator(self):
+        colours = ['#ffffff', '#ffff22', '#ff44ff', '#22ffff', '#ffff22', '#ff44ff', '#22ffff']
+        col_gen = main_script.build_colour_generator()
+        for index in range(7):
+            self.assertEqual(next(col_gen), colours[index])
+
+    def test_main_runner(self):
+        try:
+            main_script.main_function()
+        except Exception:
+            self.fail('main_runner function threw should have not thrown an Exception.')
 
 if __name__ == '__main__':
     nose.run()
