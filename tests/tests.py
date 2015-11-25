@@ -506,9 +506,9 @@ class OtherTestCases(unittest.TestCase):
 
     def setUp(self):
         self.old_verify = main_script.verify_arguments
+        self.args = []
         def mock_verify(parser, args):
-            arguments = parser.parse_args([self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
-                                           'yaml', '-f', 'yaml.graph', '-v', '4'])
+            arguments = parser.parse_args(self.args)
             return arguments
         main_script.verify_arguments = mock_verify
 
@@ -523,11 +523,69 @@ class OtherTestCases(unittest.TestCase):
         for index in range(7):
             self.assertEqual(next(col_gen), colours[index])
 
+    def test_api_creation(self):
+        try:
+            api = main_script.create_youtube_api(self.API_KEY)
+        except Exception:
+            self.fail('should not have raised an error.')
+
+        self.assertRaises(RuntimeError, main_script.create_youtube_api)
+
     def test_main_runner(self):
         try:
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '4']
             main_script.main_function()
+
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '3']
+            main_script.main_function()
+
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '2']
+            main_script.main_function()
+
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '1']
+            main_script.main_function()
+
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph']
+            main_script.main_function()
+
         except Exception:
             self.fail('main_runner function threw should have not thrown an Exception.')
+
+        # bad filenames
+        self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
+
+        self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph:']
+        self.assertRaises(Exception, main_script.main_function)
+
+        # invalid degree
+        self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '0', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
+
+        self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '-1', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
+
+        # bad api keys or channel ids
+        self.args = [self.TESTING_CHANNEL_ID, None, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
+
+        self.args = [self.TESTING_CHANNEL_ID, '____________', '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
+
+        self.args = ['___________________', self.API_KEY, '-d', '1', '-o',
+                                           'yaml', '-f', 'yaml.graph?']
+        self.assertRaises(Exception, main_script.main_function)
 
 if __name__ == '__main__':
     nose.run()
