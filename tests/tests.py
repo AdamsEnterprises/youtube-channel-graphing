@@ -66,7 +66,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
             self.assertEqual(results[i], testing_target_ids[i])
 
         result = main_script.get_association_list(self.INVALID_CODE, api)
-        self.assertIsNone(result)
+        self.assertEqual(result, [])
 
         self.assertRaises(RuntimeError, main_script.get_association_list, None, api)
         self.assertRaises(RuntimeError, main_script.get_association_list,
