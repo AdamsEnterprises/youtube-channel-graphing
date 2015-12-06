@@ -62,7 +62,7 @@ def declare_degree(logger, degree):
     :return:
     """
     if logger is not None:
-            logger.info('Degree: #{}'.format(degree))
+        logger.info('Degree: #{}'.format(degree))
 
 
 def declare_warning(logger, warning):
@@ -169,7 +169,7 @@ def verify_arguments(parser, args):
         for symbol in "\"\\|/?,<>:;'{[}]*&^%":
             if symbol in arguments.filename:
                 raise AttributeError(" '-f <filename>': <filename> contains an" +
-                             " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
+                                     " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
     def _assert_valid_degree():
         """
@@ -192,20 +192,20 @@ def verify_arguments(parser, args):
         try:
             # check for malformed urls
             if arguments.id is None or len(arguments.id) == 0:
-                raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
-                                 "id is correct.\nYou may not use a legacy username - only use a " +
-                                 "channel id.\nChannel Ids can be found at urls such as " +
-                                 "'https://www.youtube.com/channel/<id>'.")
+                raise AttributeError(" '<id>': Could not verify the channel id. Please check " +
+                                     "this id is correct.\nYou may not use a legacy username - " +
+                                     "only use a channel id.\nChannel Ids can be found at urls " +
+                                     "such as 'https://www.youtube.com/channel/<id>'.")
             temp_api = create_youtube_api(developer_key=arguments.api_key)
             response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
             # check this is the correct kind of response
             if not ('kind' in response and 'items' in response and
                     response['kind'] == 'youtube#channelListResponse' and
                     len(response['items']) > 0):
-                raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
-                        "id is correct.\nYou may not use a legacy username - only use a " +
-                        "channel id.\nChannel Ids can be found at urls such as " +
-                        "'https://www.youtube.com/channel/<id>'.")
+                raise AttributeError(" '<id>': Could not verify the channel id. Please check " +
+                                     "this id is correct.\nYou may not use a legacy username - " +
+                                     "only use a channel id.\nChannel Ids can be found at urls " +
+                                     "such as 'https://www.youtube.com/channel/<id>'.")
         except HttpError as http_excp:
             if "HttpError 400" in str(http_excp):
                 raise RuntimeError("""Error in create_youtube_api(key):
@@ -402,7 +402,7 @@ def generate_output(graph, output_format, filename):
 
     def _get_output_funcs_list():
         return [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
-                        convert_graph_to_gexf, convert_graph_to_yaml]
+                convert_graph_to_gexf, convert_graph_to_yaml]
 
     if output_format is None:
         for text in networkx.generate_adjlist(graph):
@@ -512,7 +512,6 @@ def build_colour_generator():
     create a generator for assigning colours.
     :return: generator, for colours.
     """
-    # TODO: coverage
     yield '#ffffff'
     colour_list = cycle(['#ffff22', '#ff44ff', '#22ffff'])
     while True:
