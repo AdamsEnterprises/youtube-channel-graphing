@@ -46,10 +46,12 @@ def prepare_logger(verbosity):
         logger = getLogger('youtube_user_graph')
         logger.verbosity = verbosity
         logger.setLevel(INFO)
-        formatter = Formatter(DETAILED_MESSAGE)
-        console_handler = StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        if not getattr(logger, 'handler_set', None):
+            formatter = Formatter(DETAILED_MESSAGE)
+            console_handler = StreamHandler()
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
+            logger.handler_set = True
     return logger
 
 
@@ -60,7 +62,6 @@ def declare_degree(logger, degree):
     :return:
     """
     if logger is not None:
-        if logger.verbosity >= 1:
             logger.info('Degree: #{}'.format(degree))
 
 
@@ -137,7 +138,7 @@ def setup_arg_parser():
                         graphml - xml formatted according to graphml specifications.
                         """)
     parser.add_argument('-v', '--verbose', action='store', type=int, default=0,
-                        choices=[1, 2, 3, 4],
+                        choices=[1, 2, 3],
                         help="""Display additional information to the console during processing.
                         The default (if ommitted) is to not display any information.
                         Possible choices are:
@@ -164,14 +165,11 @@ def verify_arguments(parser, args):
         :return:
         """
         # arguments is from outer scope
-        try:
-            # check if filename is valid
-            if arguments.filename is not None:
-                for symbol in "\"\\|/?,<>:;'{[}]*&^%":
-                    assert symbol not in arguments.filename
-        except AssertionError:
-            raise AttributeError(" '-f <filename>': <filename> contains an" +
-                                 " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
+        # check if filename is valid
+        for symbol in "\"\\|/?,<>:;'{[}]*&^%":
+            if symbol in arguments.filename:
+                raise AttributeError(" '-f <filename>': <filename> contains an" +
+                             " invalid symbol: \"\\|/?,<>:;'{[}]*&^%")
 
     def _assert_valid_degree():
         """
@@ -193,21 +191,21 @@ def verify_arguments(parser, args):
         # arguments is from outer scope
         try:
             # check for malformed urls
-            assert arguments.id is not None
-            assert len(arguments.id) > 0
-            temp_api = create_youtube_api(developer_key=arguments.api_key)
-            response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
-            # check this is the correct kind of response
-            assert 'kind' in response
-            assert response['kind'] == 'youtube#channelListResponse'
-            # check the response is from a real channel
-            assert 'items' in response
-            assert len(response['items']) > 0
-        except AssertionError:
-            raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
+            if arguments.id is None or len(arguments.id) == 0:
+                raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
                                  "id is correct.\nYou may not use a legacy username - only use a " +
                                  "channel id.\nChannel Ids can be found at urls such as " +
                                  "'https://www.youtube.com/channel/<id>'.")
+            temp_api = create_youtube_api(developer_key=arguments.api_key)
+            response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
+            # check this is the correct kind of response
+            if not ('kind' in response and 'items' in response and
+                    response['kind'] == 'youtube#channelListResponse' and
+                    len(response['items']) > 0):
+                raise AttributeError(" '<id>': Could not verify the channel id. Please check this " +
+                        "id is correct.\nYou may not use a legacy username - only use a " +
+                        "channel id.\nChannel Ids can be found at urls such as " +
+                        "'https://www.youtube.com/channel/<id>'.")
         except HttpError as http_excp:
             if "HttpError 400" in str(http_excp):
                 raise RuntimeError("""Error in create_youtube_api(key):
@@ -401,6 +399,11 @@ def generate_output(graph, output_format, filename):
     :param filename: the file to write to. if output_format is None, then this is ignored.
     :return:
     """
+
+    def _get_output_funcs_list():
+        return [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
+                        convert_graph_to_gexf, convert_graph_to_yaml]
+
     if output_format is None:
         for text in networkx.generate_adjlist(graph):
 
@@ -410,8 +413,7 @@ def generate_output(graph, output_format, filename):
                            value of 'o'=""" + output_format)
     else:
         # temporary mapping of format codes to formatter funcs.
-        output_funcs = [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
-                        convert_graph_to_gexf, convert_graph_to_yaml]
+        output_funcs = _get_output_funcs_list()
         output_mapping = dict()
         for index in range(len(OUTPUT_FORMATS)):
             try:
@@ -419,11 +421,7 @@ def generate_output(graph, output_format, filename):
             except IndexError:
                 break
         # now convert to the format and write to file.
-        try:
-            output_mapping[output_format](graph, filename)
-        except KeyError:
-            raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value
-                           or lacks a subroutine reference. value of 'o'=""" + output_format)
+        output_mapping[output_format](graph, filename)
     return
 
 
@@ -526,7 +524,6 @@ def main_function():
     the runner function of the main_script
     :return:
     """
-    # TODO: coverage
     try:
         parser = setup_arg_parser()
         arguments = verify_arguments(parser, None)
