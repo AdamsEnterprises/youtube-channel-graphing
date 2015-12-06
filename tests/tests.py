@@ -152,7 +152,7 @@ class ArgsParserTestCases(unittest.TestCase):
         # Do not check bad choices - arg parser will catch this.
 
     def test_args_verbose(self):
-        testing_verbosity = [1, 2, 3, 4]
+        testing_verbosity = [1, 2, 3]
         parser = main_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -533,24 +533,29 @@ class OtherTestCases(unittest.TestCase):
 
     def test_main_runner(self):
         try:
-            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
-                                           'yaml', '-f', 'yaml.graph', '-v', '4']
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
+                                           'yaml', '-f', 'yaml.graph', '-v', '3']
+            print ('Degree 1, Verbosity 4')
             main_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '3']
+            print ('Degree 1, Verbosity 3')
             main_script.main_function()
 
-            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
+            self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '2']
+            print ('Degree 1, Verbosity 2')
             main_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '1']
+            print ('Degree 1, Verbosity 1')
             main_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph']
+            print ('Degree 1, Verbosity 0')
             main_script.main_function()
 
         except Exception:
