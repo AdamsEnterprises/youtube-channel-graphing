@@ -62,7 +62,7 @@ def declare_degree(logger, degree):
     :return:
     """
     if logger is not None:
-        logger.info('Degree: #{}'.format(degree))
+        logger.info('\nDegree: #{}'.format(degree))
 
 
 def declare_warning(logger, warning):
@@ -197,7 +197,8 @@ def verify_arguments(parser, args):
                                      "only use a channel id.\nChannel Ids can be found at urls " +
                                      "such as 'https://www.youtube.com/channel/<id>'.")
             temp_api = create_youtube_api(developer_key=arguments.api_key)
-            response = temp_api.channels().list(part='snippet', id=arguments.id).execute()
+            api_channels = temp_api.channels()
+            response = api_channels.list(part='snippet', id=arguments.id).execute()
             # check this is the correct kind of response
             if not ('kind' in response and 'items' in response and
                     response['kind'] == 'youtube#channelListResponse' and
@@ -250,6 +251,11 @@ def get_association_list(channel_id, api):
     """
 
     def _create_associate_list():
+        """
+        make a list of associates through an api brandingSettings request
+        :return: list of associate channels
+        """
+
         result = api.channels().list(part='brandingSettings', id=channel_id).execute()
         if len(result['items']) == 0:
             return None
@@ -288,6 +294,10 @@ def extract_user_name(channel_id, api):
     """
 
     def _find_title():
+        """
+        grab the channel title through an api brandingSettings request
+        :return: channel title
+        """
         result = api.channels().list(part='brandingSettings', id=channel_id).execute()
         if len(result['items']) == 0:
             return None
@@ -401,6 +411,10 @@ def generate_output(graph, output_format, filename):
     """
 
     def _get_output_funcs_list():
+        """
+        get a sequence of conversion functions.
+        :return: list of conversion functions.
+        """
         return [convert_graph_to_text, convert_graph_to_graphml, convert_graph_to_gml,
                 convert_graph_to_gexf, convert_graph_to_yaml]
 
@@ -534,7 +548,6 @@ def main_function():
         youtube_user_graph.clear()
         build_graph(youtube_user_graph, api, max_depth=arguments.degree,
                     initial_channel=arguments.id, logger=logger)
-
         generate_output(youtube_user_graph, arguments.output, arguments.filename)
         if arguments.show_graph:
             colours = build_colour_generator()
