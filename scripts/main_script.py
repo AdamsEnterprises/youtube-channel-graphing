@@ -73,7 +73,6 @@ def declare_warning(logger, warning):
     :return:
     """
     if logger is not None:
-        if logger.verbosity >= 1:
             logger.warning(warning)
 
 
@@ -191,6 +190,8 @@ def verify_arguments(parser, args):
         # arguments is from outer scope
         try:
             # check for malformed urls
+            # this is too unreliable to test.
+            # pragma: no cover
             if arguments.id is None or len(arguments.id) == 0:
                 raise AttributeError(" '<id>': Could not verify the channel id. Please check " +
                                      "this id is correct.\nYou may not use a legacy username - " +
@@ -200,6 +201,8 @@ def verify_arguments(parser, args):
             api_channels = temp_api.channels()
             response = api_channels.list(part='snippet', id=arguments.id).execute()
             # check this is the correct kind of response
+            # difficult to reliably test
+            # pragma: no cover
             if not ('kind' in response and 'items' in response and
                     response['kind'] == 'youtube#channelListResponse' and
                     len(response['items']) > 0):
@@ -207,6 +210,8 @@ def verify_arguments(parser, args):
                                      "this id is correct.\nYou may not use a legacy username - " +
                                      "only use a channel id.\nChannel Ids can be found at urls " +
                                      "such as 'https://www.youtube.com/channel/<id>'.")
+        # only occurs with malformed api requests or unusual errors from network or api itself.
+        # pragma: no cover
         except HttpError as http_excp:
             if "HttpError 400" in str(http_excp):
                 raise RuntimeError("""Error in create_youtube_api(key):
@@ -236,6 +241,7 @@ def create_youtube_api(developer_key=None):
         api = discovery.build(serviceName=API_YOUTUBE_SERVICE, version=API_VERSION,
                               developerKey=developer_key)
         return api
+    # pragma: no cover
     except HttpError as http_excp:
         if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in create_youtube_api(key):
@@ -276,6 +282,7 @@ def get_association_list(channel_id, api):
                                was expecting 'a' to be a youtube api client.""")
         else:
             raise att_excp
+    # pragma: no cover
     except HttpError as http_excp:
         if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in get_association_list(i, a):
@@ -315,6 +322,8 @@ def extract_user_name(channel_id, api):
                                was expecting 'a' to be a youtube api client.""")
         else:
             raise att_excp
+    # unreliable to test
+    # pragma: no cover
     except HttpError as http_excp:
         if "HttpError 400" in str(http_excp):
             raise RuntimeError("""Error in extract_user_name(i, a):
@@ -432,6 +441,8 @@ def generate_output(graph, output_format, filename):
         for index in range(len(OUTPUT_FORMATS)):
             try:
                 output_mapping[OUTPUT_FORMATS[index]] = output_funcs[index]
+            # do not test: exists as catch
+            # pragma: no cover
             except IndexError:
                 break
         # now convert to the format and write to file.
@@ -549,6 +560,8 @@ def main_function():
         build_graph(youtube_user_graph, api, max_depth=arguments.degree,
                     initial_channel=arguments.id, logger=logger)
         generate_output(youtube_user_graph, arguments.output, arguments.filename)
+        # causes issues due to matplotlib use.
+        # pragma: no cover
         if arguments.show_graph:
             colours = build_colour_generator()
             colours_dict = dict()
