@@ -424,7 +424,7 @@ def generate_output(graph, output_format, filename):
     if output_format is None:
         for text in networkx.generate_adjlist(graph):
 
-            print(text.encode('ascii', 'ignore'))
+            print(text)
     elif output_format not in OUTPUT_FORMATS:
         raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value.
                            value of 'o'=""" + output_format)
