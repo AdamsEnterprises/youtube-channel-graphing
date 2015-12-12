@@ -16,12 +16,17 @@ except ImportError:
 import argparse
 from itertools import cycle
 import json
+try:
+    from googleapiclient import discovery
+    from googleapiclient.errors import HttpError
+    import networkx
+    from networkx.readwrite import json_graph
+except ImportError:
+    print ('''ERROR: the networkX and google-api-client modules are required.
+    You can install these modules through pip.''')
+    exit()
 
-from googleapiclient import discovery
-from googleapiclient.errors import HttpError
 
-import networkx
-from networkx.readwrite import json_graph
 
 DETAILED_MESSAGE = '%(asctime)-15s >>> %(funcName)s, line:%(lineno)d --- %(message)s'
 
