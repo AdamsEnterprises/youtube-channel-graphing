@@ -1,3 +1,4 @@
+#!/usr/env python
 """
 Main script for tge youtube graphing project.
 """

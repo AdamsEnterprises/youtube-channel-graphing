@@ -14,11 +14,16 @@ import sys
 import networkx as nx
 from networkx import Graph
 from networkx.readwrite import json_graph
+try:
+    from googleapiclient import discovery
+    from googleapiclient.errors import HttpError
+except ImportError:
+    print ('''ERROR: the networkX and google-api-client modules are required.
+    You can install these modules through pip.''')
+    exit()
 
-from googleapiclient import discovery
-from googleapiclient.errors import HttpError
 
-from scripts import main_script
+from scripts import yt_script
 
 
 class YoutubeApiProceduresTestCases(unittest.TestCase):
@@ -52,7 +57,7 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         try:
             api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
-            results = main_script.get_association_list(self.TESTING_CHANNEL_ID, api)
+            results = yt_script.get_association_list(self.TESTING_CHANNEL_ID, api)
         except (HttpError, AttributeError):
             self.fail()
 
@@ -65,14 +70,14 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         for i in range(len(results)):
             self.assertEqual(results[i], testing_target_ids[i])
 
-        result = main_script.get_association_list(self.INVALID_CODE, api)
+        result = yt_script.get_association_list(self.INVALID_CODE, api)
         self.assertEqual(result, [])
 
-        self.assertRaises(RuntimeError, main_script.get_association_list, None, api)
-        self.assertRaises(RuntimeError, main_script.get_association_list,
+        self.assertRaises(RuntimeError, yt_script.get_association_list, None, api)
+        self.assertRaises(RuntimeError, yt_script.get_association_list,
                           self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(RuntimeError, main_script.get_association_list, None, None)
-        self.assertRaises(RuntimeError, main_script.get_association_list,
+        self.assertRaises(RuntimeError, yt_script.get_association_list, None, None)
+        self.assertRaises(RuntimeError, yt_script.get_association_list,
                           self.TESTING_CHANNEL_ID, non_api)
 
     def test_extract_user_name(self):
@@ -83,22 +88,22 @@ class YoutubeApiProceduresTestCases(unittest.TestCase):
         try:
             api = self._youtube_api()
             non_api = discovery.RawModel()      # object that is not actually an api.
-            name = main_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
+            name = yt_script.extract_user_name(self.TESTING_CHANNEL_ID, api=api)
         except (HttpError, AttributeError):
             self.fail()
 
         self.assertEqual(testing_target_username, name)
 
-        result = main_script.extract_user_name(self.INVALID_CODE, api)
+        result = yt_script.extract_user_name(self.INVALID_CODE, api)
         self.assertIsNone(result)
 
-        self.assertRaises(RuntimeError, main_script.extract_user_name,
+        self.assertRaises(RuntimeError, yt_script.extract_user_name,
                           None, api)
-        self.assertRaises(RuntimeError, main_script.extract_user_name,
+        self.assertRaises(RuntimeError, yt_script.extract_user_name,
                           self.TESTING_CHANNEL_ID, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name,
+        self.assertRaises(RuntimeError, yt_script.extract_user_name,
                           None, None)
-        self.assertRaises(RuntimeError, main_script.extract_user_name,
+        self.assertRaises(RuntimeError, yt_script.extract_user_name,
                           self.TESTING_CHANNEL_ID, non_api)
 
 
@@ -110,11 +115,11 @@ class ArgsParserTestCases(unittest.TestCase):
     def test_args_defaults(self):
 
         expected_defaults = "Namespace(api_key=" + repr(self.TESTING_API_KEY) + \
-                            ", degree=1, filename=" + repr(main_script.DEFAULT_OUTPUT_FILENAME) \
+                            ", degree=1, filename=" + repr(yt_script.DEFAULT_OUTPUT_FILENAME) \
                             + ", id=" + repr(self.TESTING_CHANNEL_ARG) + \
                             ", output=None, show_graph=False, verbose=0)"
 
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
         response = parser.parse_args([self.TESTING_CHANNEL_ARG, self.TESTING_API_KEY])
         self.assertEqual(str(response), expected_defaults)
 
@@ -124,7 +129,7 @@ class ArgsParserTestCases(unittest.TestCase):
     # Do not test verifying the Channel Arg, as this will retest extract_user_name.
 
     def test_args_degrees(self):
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
         testing_degrees = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         for test_degree in testing_degrees:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
@@ -135,7 +140,7 @@ class ArgsParserTestCases(unittest.TestCase):
 
     def test_args_filename(self):
         filename = 'mock_filename'
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
         response = parser.parse_args([self.TESTING_CHANNEL_ARG,
                                       self.TESTING_API_KEY, '-f', filename])
 
@@ -143,7 +148,7 @@ class ArgsParserTestCases(unittest.TestCase):
 
     def test_args_output(self):
         testing_outputs = ['text', 'graphml', 'gml', 'gexf', 'yaml']
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
         for option in testing_outputs:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
                                           self.TESTING_API_KEY, '-o', option])
@@ -153,7 +158,7 @@ class ArgsParserTestCases(unittest.TestCase):
 
     def test_args_verbose(self):
         testing_verbosity = [1, 2, 3]
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
         for option in testing_verbosity:
             response = parser.parse_args([self.TESTING_CHANNEL_ARG,
                                           self.TESTING_API_KEY, '-v', str(option)])
@@ -173,32 +178,32 @@ class ArgsVerificationTestCases(unittest.TestCase):
     BAD_CHARS = """^&*[]{};:\'\"?/\\><,"""
 
     def test_verify_args_general(self):
-        parser = main_script.setup_arg_parser()
+        parser = yt_script.setup_arg_parser()
 
         try:
-            main_script.verify_arguments(
+            yt_script.verify_arguments(
                 parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                          '-d', '1', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT])
-            main_script.verify_arguments(
+            yt_script.verify_arguments(
                 parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                          '-d', '99999', '-f', '.' + self.TESTING_FILENAME + '.' + self.TESTING_EXT])
-            main_script.verify_arguments(
+            yt_script.verify_arguments(
                 parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                          '-d', '99999', '-f', self.TESTING_FILENAME + '.' + self.TESTING_EXT + '.'])
-            main_script.verify_arguments(
+            yt_script.verify_arguments(
                 parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                          '-d', '99999', '-f', self.TESTING_FILENAME])
         except AssertionError as e:
             self.fail(str(e.message))
 
-        self.assertRaises(AttributeError, main_script.verify_arguments,
+        self.assertRaises(AttributeError, yt_script.verify_arguments,
                           parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                    '-d', '0', '-f', self.TESTING_FILENAME])
-        self.assertRaises(AttributeError, main_script.verify_arguments,
+        self.assertRaises(AttributeError, yt_script.verify_arguments,
                           parser, [self.TESTING_CHANNEL_ID, self.API_KEY,
                                    '-d', '-1', '-f', self.TESTING_FILENAME])
         for char in self.BAD_CHARS:
-            self.assertRaises(Exception, main_script.verify_arguments,
+            self.assertRaises(Exception, yt_script.verify_arguments,
                               [self.TESTING_CHANNEL_ID, self.API_KEY,
                                '-f', self.TESTING_FILENAME + char])
 
@@ -229,8 +234,8 @@ class GraphGenerationTestCases(unittest.TestCase):
 
     def setUp(self):
         # save the normal script api functions
-        self.old_assoc = main_script.get_association_list
-        self.old_names = main_script.extract_user_name
+        self.old_assoc = yt_script.get_association_list
+        self.old_names = yt_script.extract_user_name
 
         # mock the api functions, so instead of youtube API they access the mock graph
         def _mock_get_association_list(channel_id, _):
@@ -247,12 +252,12 @@ class GraphGenerationTestCases(unittest.TestCase):
         def _mock_extract_user_name(channel_id, _):
             return self.MOCK_GRAPH.node[channel_id]['name']
 
-        main_script.get_association_list = _mock_get_association_list
-        main_script.extract_user_name = _mock_extract_user_name
+        yt_script.get_association_list = _mock_get_association_list
+        yt_script.extract_user_name = _mock_extract_user_name
 
     def tearDown(self):
-        main_script.get_association_list = self.old_assoc
-        main_script.extract_user_name = self.old_names
+        yt_script.get_association_list = self.old_assoc
+        yt_script.extract_user_name = self.old_names
 
     def test_create_graph(self):
         expected_graph = nx.Graph()
@@ -274,7 +279,7 @@ class GraphGenerationTestCases(unittest.TestCase):
 
         actual_graph = nx.Graph()
 
-        main_script.build_graph(actual_graph, None, max_depth=7, initial_channel='A')
+        yt_script.build_graph(actual_graph, None, max_depth=7, initial_channel='A')
 
         for node in expected_graph.nodes():
             self.assertIn(node, actual_graph.nodes())
@@ -290,7 +295,7 @@ class GraphGenerationTestCases(unittest.TestCase):
 
         actual_graph = nx.Graph()
 
-        main_script.build_graph(actual_graph, None, max_depth=7, initial_channel=None)
+        yt_script.build_graph(actual_graph, None, max_depth=7, initial_channel=None)
 
         self.assertEqual(actual_graph.number_of_nodes(), 0)
 
@@ -342,7 +347,7 @@ class DataOutputTestCases(unittest.TestCase):
         convert graph to text, as adjacency list.
         :return:
         """
-        main_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_text(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             output = f.read()
             output = output.split('\n')
@@ -362,7 +367,7 @@ class DataOutputTestCases(unittest.TestCase):
         convert graph to graphml xml format
         :return:
         """
-        main_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_graphml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_graphml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
             self.assertIn(node, result_graph.nodes())
@@ -379,7 +384,7 @@ class DataOutputTestCases(unittest.TestCase):
         convert graph to gml format
         :return:
         """
-        main_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_gml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
             self.assertIn(node, result_graph.nodes())
@@ -397,7 +402,7 @@ class DataOutputTestCases(unittest.TestCase):
         :return:
         """
         self.skipTest('Requires directed Graphs, which are outside the scope of the project.')
-        main_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_json(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         with open(self.MOCK_FILE_OUTPUT) as f:
             json_data = json.load(f.read())
             result_graph = json_graph.tree_graph(json_data)
@@ -417,7 +422,7 @@ class DataOutputTestCases(unittest.TestCase):
         convert graph to gexf xml format
         :return:
         """
-        main_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_gexf(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_gexf(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
             self.assertIn(node, result_graph.nodes())
@@ -434,7 +439,7 @@ class DataOutputTestCases(unittest.TestCase):
         convert graph to yaml format
         :return:
         """
-        main_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
+        yt_script.convert_graph_to_yaml(self.MOCK_GRAPH, self.MOCK_FILE_OUTPUT)
         result_graph = nx.read_yaml(self.MOCK_FILE_OUTPUT)
         for node in self.MOCK_GRAPH.nodes():
             self.assertIn(node, result_graph.nodes())
@@ -455,13 +460,13 @@ class DataOutputTestCases(unittest.TestCase):
         custom_filename = 'custom.out'
 
         try:
-            main_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
+            yt_script.generate_output(self.MOCK_GRAPH, None, self.MOCK_FILE_OUTPUT)
             self.assertFalse(os.path.exists(self.MOCK_FILE_OUTPUT))
         except AttributeError:
             self.fail()
 
         try:
-            main_script.generate_output(self.MOCK_GRAPH, 'gml', self.MOCK_FILE_OUTPUT)
+            yt_script.generate_output(self.MOCK_GRAPH, 'gml', self.MOCK_FILE_OUTPUT)
             result_graph = nx.read_gml(self.MOCK_FILE_OUTPUT)
             for node in self.MOCK_GRAPH.nodes():
                 self.assertIn(node, result_graph.nodes())
@@ -476,7 +481,7 @@ class DataOutputTestCases(unittest.TestCase):
             self.fail()
 
         try:
-            main_script.generate_output(self.MOCK_GRAPH, 'gml', custom_filename)
+            yt_script.generate_output(self.MOCK_GRAPH, 'gml', custom_filename)
             result_graph = nx.read_gml(custom_filename)
             for node in self.MOCK_GRAPH.nodes():
                 self.assertIn(node, result_graph.nodes())
@@ -490,7 +495,7 @@ class DataOutputTestCases(unittest.TestCase):
         except AttributeError:
             self.fail()
 
-        self.assertRaises(RuntimeError, main_script.generate_output,
+        self.assertRaises(RuntimeError, yt_script.generate_output,
                           self.MOCK_GRAPH, 'fake_format', custom_filename)
 
         if os.path.exists(custom_filename):
@@ -505,58 +510,58 @@ class OtherTestCases(unittest.TestCase):
     API_KEY = 'AIzaSyBAnZnN1O9DyBf1btAtOaGxm3Wgf3znBb0'
 
     def setUp(self):
-        self.old_verify = main_script.verify_arguments
+        self.old_verify = yt_script.verify_arguments
         self.args = []
         def mock_verify(parser, args):
             arguments = parser.parse_args(self.args)
             return arguments
-        main_script.verify_arguments = mock_verify
+        yt_script.verify_arguments = mock_verify
 
     def tearDown(self):
-        main_script.verify_arguments = self.old_verify
+        yt_script.verify_arguments = self.old_verify
         if os.path.exists('yaml.graph'):
             os.remove('yaml.graph')
 
     def test_colour_generator(self):
         colours = ['#ffffff', '#ffff22', '#ff44ff', '#22ffff', '#ffff22', '#ff44ff', '#22ffff']
-        col_gen = main_script.build_colour_generator()
+        col_gen = yt_script.build_colour_generator()
         for index in range(7):
             self.assertEqual(next(col_gen), colours[index])
 
     def test_api_creation(self):
         try:
-            api = main_script.create_youtube_api(self.API_KEY)
+            api = yt_script.create_youtube_api(self.API_KEY)
         except Exception:
             self.fail('should not have raised an error.')
 
-        self.assertRaises(RuntimeError, main_script.create_youtube_api)
+        self.assertRaises(RuntimeError, yt_script.create_youtube_api)
 
     def test_main_runner(self):
         try:
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '2', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '3']
             print ('Degree 1, Verbosity 4')
-            main_script.main_function()
+            yt_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '3']
             print ('Degree 1, Verbosity 3')
-            main_script.main_function()
+            yt_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '2']
             print ('Degree 1, Verbosity 2')
-            main_script.main_function()
+            yt_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph', '-v', '1']
             print ('Degree 1, Verbosity 1')
-            main_script.main_function()
+            yt_script.main_function()
 
             self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph']
             print ('Degree 1, Verbosity 0')
-            main_script.main_function()
+            yt_script.main_function()
 
         except Exception:
             self.fail('main_runner function threw should have not thrown an Exception.')
@@ -564,33 +569,33 @@ class OtherTestCases(unittest.TestCase):
         # bad filenames
         self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph:']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         # invalid degree
         self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '0', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         self.args = [self.TESTING_CHANNEL_ID, self.API_KEY, '-d', '-1', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         # bad api keys or channel ids
         self.args = [self.TESTING_CHANNEL_ID, None, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         self.args = [self.TESTING_CHANNEL_ID, '____________', '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
         self.args = ['___________________', self.API_KEY, '-d', '1', '-o',
                                            'yaml', '-f', 'yaml.graph?']
-        self.assertRaises(Exception, main_script.main_function)
+        self.assertRaises(Exception, yt_script.main_function)
 
 if __name__ == '__main__':
     nose.run()
