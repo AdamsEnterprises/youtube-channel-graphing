@@ -1,3 +1,4 @@
+#!/usr/env python
 """
 Main script for tge youtube graphing project.
 """
@@ -16,12 +17,17 @@ except ImportError:
 import argparse
 from itertools import cycle
 import json
+try:
+    from googleapiclient import discovery
+    from googleapiclient.errors import HttpError
+    import networkx
+    from networkx.readwrite import json_graph
+except ImportError:
+    print ('''ERROR: the networkX and google-api-client modules are required.
+    You can install these modules through pip.''')
+    exit()
 
-from googleapiclient import discovery
-from googleapiclient.errors import HttpError
 
-import networkx
-from networkx.readwrite import json_graph
 
 DETAILED_MESSAGE = '%(asctime)-15s >>> %(funcName)s, line:%(lineno)d --- %(message)s'
 
@@ -424,7 +430,7 @@ def generate_output(graph, output_format, filename):
     if output_format is None:
         for text in networkx.generate_adjlist(graph):
 
-            print(text.encode('ascii', 'ignore'))
+            print(text)
     elif output_format not in OUTPUT_FORMATS:
         raise RuntimeError("""Error in generate_output(g, o, f): 'o' has an unrecognised value.
                            value of 'o'=""" + output_format)
