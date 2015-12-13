@@ -37,5 +37,8 @@ Only the featured channels a user has agreed to publicly list are used.
 From the windows CLI, in the folder you unzipped the files to, type the command "python scripts\yt-script.py -h" to see possible options.
 From the linux CLI, in the folder you unzipped the files to, type the command "./scripts/yt-script.py -h", assuming the correct permissions are in place.
 Currently you will require an developer API-Key with Google Inc.
+
+You can run tests with the commands "python tests\tests.py" and "./tests/tests.py". 
+
 The channel IDs required in the CLI options are in the modern form - Legacy channel names will not be recognised.
 If you do not know the channel ID for the channel you wish to analyze, visit the channel on youtube, and look for "channel/???" in the Url. The "???" will be the Channel ID. 
